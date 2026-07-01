@@ -2,6 +2,14 @@
   <h1>D-View</h1>
   <p><strong>Discord permission visibility dashboard for safer server administration.</strong></p>
   <p>
+    <a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
+    <a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
+    <a href="https://github.com/PrimeBuild-pc/D-View/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+    <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs" />
+    <img alt="pnpm" src="https://img.shields.io/badge/pnpm-11.9-F69220?style=for-the-badge&logo=pnpm&logoColor=white" />
+  </p>
+  <p>
     <a href="#features">Features</a> ·
     <a href="#quick-start">Quick Start</a> ·
     <a href="#workspace">Workspace</a> ·
