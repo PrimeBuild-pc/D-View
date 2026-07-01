@@ -38,11 +38,11 @@ export default async function GuildsPage({ searchParams }: { searchParams: Promi
           <div key={guild.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
             <h2 className="font-medium text-white">{guild.name}</h2>
             <p className="text-sm text-slate-400">{guild.owner ? 'Owner' : 'Administrator'} · {copy.readAllowed}</p>
-            <div className="mt-3 flex items-center gap-3">
-              <Link href={`/guilds/${guild.id}?lang=${lang}`} className="text-sm text-indigo-300">{copy.openSnapshot}</Link>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <form action={`/api/guilds/${guild.id}/sync?lang=${lang}`} method="post">
-                <button className="text-sm text-slate-300 underline">{copy.syncNow}</button>
+                <button className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white">{copy.syncNow}</button>
               </form>
+              <Link href={`/guilds/${guild.id}?lang=${lang}`} className="text-sm text-indigo-300">{copy.openSnapshot}</Link>
             </div>
           </div>
         ))}

@@ -2,6 +2,7 @@ import { prisma } from '@dpd/database';
 import { permissionSnapshotSchema, type PermissionSnapshot } from '@dpd/shared';
 import Link from 'next/link';
 import { PermissionDashboard } from '../../permission-dashboard';
+import { SyncButton } from './sync-button';
 import { getLang, t } from '@/lib/i18n';
 import { canReadGuild, getSession } from '@/lib/session';
 
@@ -42,9 +43,9 @@ export default async function SyncedGuildPage({
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
         <h1 className="text-2xl font-semibold text-white">{copy.noSnapshot}</h1>
-        <p className="mt-2 text-slate-400">{copy.runSync} <code>SYNC_GUILD_ID={guildId}</code>, {copy.thenRefresh}</p>
-        <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post">
-          <button className="mt-4 rounded bg-indigo-600 px-4 py-2 text-white">{copy.syncNow}</button>
+        <p className="mt-2 text-slate-400">{copy.runSync}</p>
+        <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post" className="mt-4">
+          <SyncButton idle={copy.syncNow} pending={copy.syncing} />
         </form>
       </div>
     );
@@ -53,15 +54,23 @@ export default async function SyncedGuildPage({
   const snapshot = permissionSnapshotSchema.parse(latest.data) as PermissionSnapshot;
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-3">
-        <Link className="rounded border border-slate-700 px-3 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/matrix?lang=${lang}`}>{copy.matrix}</Link>
-        <Link className="rounded border border-slate-700 px-3 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/import?lang=${lang}`}>{copy.importJson}</Link>
-        <a className="rounded border border-slate-700 px-3 py-2 text-sm text-slate-200" href={`/api/guilds/${guildId}/snapshot`}>{copy.exportJson}</a>
-        <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post">
-          <button className="rounded bg-indigo-600 px-3 py-2 text-sm text-white">{copy.syncNow}</button>
-        </form>
-      </div>
-      {syncMessage ? <p className="rounded border border-slate-800 bg-slate-950 p-3 text-sm text-slate-200">{syncMessage}</p> : null}
+      <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">{copy.syncStatus}</p>
+            <h2 className="text-lg font-semibold text-white">{syncMessage ?? copy.currentSnapshot}</h2>
+            <p className="text-sm text-slate-400">{copy.lastSync} {new Date(snapshot.exportedAt).toLocaleString()}</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <a className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white" href={`/api/guilds/${guildId}/snapshot`}>{copy.exportSnapshot}</a>
+            <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post">
+              <SyncButton idle={copy.syncNow} pending={copy.syncing} />
+            </form>
+            <Link className="rounded border border-slate-700 px-4 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/matrix?lang=${lang}`}>{copy.matrix}</Link>
+            <Link className="rounded border border-slate-700 px-4 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/import?lang=${lang}`}>{copy.importJson}</Link>
+          </div>
+        </div>
+      </section>
     <PermissionDashboard
       snapshot={snapshot}
       selectedRoleId={query.role}
