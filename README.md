@@ -23,11 +23,13 @@
 ![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220?style=flat-square&logo=pnpm&logoColor=white&labelColor=0b1120)
 ![Vitest](https://img.shields.io/badge/Vitest-30%20tests-6E9F18?style=flat-square&logo=vitest&logoColor=white&labelColor=0b1120)
 
-**[Quick start](#-quick-start) · [What it does](#-what-it-does) · [Safety](#-safety-model) · [Languages](#-languages) · [Workspace](#-workspace) · [Limits](#-notes-and-limits)**
+**[Quick start](#quick-start) · [What it does](#what-it-does) · [Safety](#safety-model) · [Languages](#languages) · [Workspace](#workspace) · [Limits](#notes-and-limits)**
 
 </div>
 
 ---
+
+<a id="what-it-does"></a>
 
 ## 🔍 What it does
 
@@ -69,6 +71,8 @@ Three things in particular are easy to get wrong, and D-View gets them right:
 </details>
 
 ---
+
+<a id="quick-start"></a>
 
 ## ⚡ Quick start
 
@@ -129,6 +133,8 @@ each failing check tells you exactly how to fix it. That page also generates the
 
 ---
 
+<a id="safety-model"></a>
+
 ## 🛡 Safety model
 
 Writing to Discord is **off by default**. When you enable it, every change goes
@@ -158,6 +164,8 @@ otherwise, and a bot can only grant permissions it holds itself.
 
 ---
 
+<a id="languages"></a>
+
 ## 🌍 Languages
 
 <div align="center">
@@ -175,6 +183,8 @@ interface. The permission engine emits message codes rather than prose, which is
 what makes the explanation trace and the audit list translatable at all.
 
 ---
+
+<a id="workspace"></a>
 
 ## 🧱 Workspace
 
@@ -223,6 +233,8 @@ because Discord renders it at 32px in member lists.
 </details>
 
 ---
+
+<a id="notes-and-limits"></a>
 
 ## 📋 Notes and limits
 
