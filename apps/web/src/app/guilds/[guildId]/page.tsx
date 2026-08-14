@@ -1,83 +1,134 @@
-import { prisma } from '@dpd/database';
-import { permissionSnapshotSchema, type PermissionSnapshot } from '@dpd/shared';
 import Link from 'next/link';
-import { PermissionDashboard } from '../../permission-dashboard';
-import { SyncButton } from './sync-button';
-import { getLang, t } from '@/lib/i18n';
-import { canReadGuild, getSession } from '@/lib/session';
+import { auditSnapshot } from '@dpd/permission-engine';
+import { channelKind, type PermissionSnapshot } from '@dpd/shared';
+import { t, fill, type Dict, type Lang } from '@/lib/i18n';
+import { resolveLang } from '@/lib/i18n/server';
+import { guildAccess } from '@/lib/guild';
+import { loadSnapshot } from '@/lib/plans';
+import { Badge, Card, CardBody, LinkButton, Notice, SectionTitle, Stat } from '@/components/ui';
+import { SnapshotGate } from '@/components/snapshot-gate';
+import { RelativeTime } from '@/components/relative-time';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SyncedGuildPage({
+export default async function OverviewPage({
   params,
   searchParams,
 }: {
   params: Promise<{ guildId: string }>;
-  searchParams: Promise<{ role?: string; channel?: string; lang?: string; sync?: string }>;
+  searchParams: Promise<{ sync?: string; detail?: string }>;
 }) {
-  const [{ guildId }, query, session] = await Promise.all([params, searchParams, getSession()]);
-  const lang = getLang(query.lang);
+  const { guildId } = await params;
+  const [access, query, lang] = await Promise.all([guildAccess(guildId), searchParams, resolveLang()]);
   const copy = t(lang);
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canReadGuild(guild));
-  if (!allowed) {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
-        <h1 className="text-2xl font-semibold text-white">{copy.notAuthorized}</h1>
-        <p className="mt-2 text-slate-400">{copy.loginHelp}</p>
-        <Link href={`/guilds?lang=${lang}`} className="mt-4 inline-block text-indigo-300">{copy.backToGuilds}</Link>
-      </div>
-    );
-  }
+  if (!access) return null;
 
-  const syncMessage =
-    query.sync === 'ok'
-      ? copy.syncOk
-      : query.sync === 'failed'
-        ? copy.syncFailed
-        : query.sync === 'missing-token'
-          ? copy.syncMissingToken
-          : undefined;
+  const load = await loadSnapshot(guildId);
 
-  const latest = await prisma.permissionSnapshot.findFirst({ where: { guildId }, orderBy: { createdAt: 'desc' } });
-  if (!latest) {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
-        <h1 className="text-2xl font-semibold text-white">{copy.noSnapshot}</h1>
-        <p className="mt-2 text-slate-400">{copy.runSync}</p>
-        <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post" className="mt-4">
-          <SyncButton idle={copy.syncNow} pending={copy.syncing} />
-        </form>
-      </div>
-    );
-  }
-
-  const snapshot = permissionSnapshotSchema.parse(latest.data) as PermissionSnapshot;
   return (
-    <div className="space-y-4">
-      <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">{copy.syncStatus}</p>
-            <h2 className="text-lg font-semibold text-white">{syncMessage ?? copy.currentSnapshot}</h2>
-            <p className="text-sm text-slate-400">{copy.lastSync} {new Date(snapshot.exportedAt).toLocaleString()}</p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{copy.overview.title}</h1>
+        {load.status === 'ok' ? (
+          <div className="flex flex-wrap gap-2">
+            {/* Export is a plain link, so it needs no client state. */}
+            <LinkButton href={`/api/guilds/${guildId}/snapshot`}>{copy.sync.exportSnapshot}</LinkButton>
+            <LinkButton href={`/guilds/${guildId}/import`}>{copy.nav.importJson}</LinkButton>
+            <LinkButton href={`/guilds/${guildId}/explorer`} tone="primary">
+              {copy.nav.explorer}
+            </LinkButton>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <a className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white" href={`/api/guilds/${guildId}/snapshot`}>{copy.exportSnapshot}</a>
-            <form action={`/api/guilds/${guildId}/sync?lang=${lang}`} method="post">
-              <SyncButton idle={copy.syncNow} pending={copy.syncing} />
-            </form>
-            <Link className="rounded border border-slate-700 px-4 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/matrix?lang=${lang}`}>{copy.matrix}</Link>
-            <Link className="rounded border border-slate-700 px-4 py-2 text-sm text-slate-200" href={`/guilds/${guildId}/import?lang=${lang}`}>{copy.importJson}</Link>
+        ) : null}
+      </div>
+
+      {/* Success and failure are visually distinct now; both used to render as
+          the page heading in the same neutral style. */}
+      {query.sync === 'ok' ? <Notice tone="allow">{copy.sync.ok}</Notice> : null}
+      {query.sync === 'failed' ? (
+        <Notice tone="critical" title={copy.sync.failed}>
+          {query.detail ? <code className="text-xs break-all">{query.detail}</code> : null}
+        </Notice>
+      ) : null}
+      {query.sync === 'missing-token' ? (
+        <Notice tone="warning" title={copy.sync.missingToken}>
+          <Link href="/setup" className="underline">
+            {copy.nav.setup}
+          </Link>
+        </Notice>
+      ) : null}
+
+      {load.status !== 'ok' ? (
+        <SnapshotGate load={load} copy={copy} guildId={guildId} />
+      ) : (
+        <OverviewBody snapshot={load.snapshot} createdAt={load.createdAt} copy={copy} lang={lang} guildId={guildId} />
+      )}
+    </div>
+  );
+}
+
+function OverviewBody({
+  snapshot,
+  createdAt,
+  copy,
+  lang,
+  guildId,
+}: {
+  snapshot: PermissionSnapshot;
+  createdAt: Date;
+  copy: Dict;
+  lang: Lang;
+  guildId: string;
+}) {
+  const findings = auditSnapshot(snapshot);
+  const critical = findings.filter((finding) => finding.severity === 'critical');
+  const warnings = findings.filter((finding) => finding.severity === 'warning');
+  const categories = snapshot.channels.filter((channel) => channelKind(channel.type) === 'category');
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-ink-faint">
+        <RelativeTime date={createdAt.toISOString()} lang={lang} />
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label={copy.overview.roles} value={snapshot.roles.length} />
+        <Stat label={copy.overview.channels} value={snapshot.channels.length - categories.length} />
+        <Stat label={copy.overview.categories} value={categories.length} />
+        <Stat
+          label={copy.overview.critical}
+          value={critical.length}
+          {...(critical.length > 0 ? { tone: 'critical' as const } : {})}
+        />
+      </div>
+
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <SectionTitle>{copy.overview.riskiest}</SectionTitle>
+            <Link href={`/guilds/${guildId}/audit`} className="text-sm text-ink-muted hover:text-ink">
+              {copy.nav.audit} →
+            </Link>
           </div>
-        </div>
-      </section>
-    <PermissionDashboard
-      snapshot={snapshot}
-      selectedRoleId={query.role}
-      selectedChannelId={query.channel}
-      subtitle={`${copy.syncedSubtitle} ${snapshot.exportedAt}`}
-      lang={lang}
-    />
+          {critical.length === 0 && warnings.length === 0 ? (
+            <p className="text-sm text-ink-muted">{copy.overview.healthy}</p>
+          ) : (
+            <ul className="space-y-2">
+              {/* Critical first — the old list sorted admin warnings ahead of
+                  everything and then truncated at eight, hiding every critical. */}
+              {[...critical, ...warnings].slice(0, 5).map((finding, position) => (
+                <li key={`${finding.code}-${position}`} className="flex items-start gap-2 text-sm">
+                  <Badge tone={finding.severity === 'critical' ? 'critical' : 'warning'}>
+                    {finding.severity === 'critical' ? copy.audit.critical : copy.audit.warning}
+                  </Badge>
+                  <span className="text-ink-muted">
+                    {fill(copy.audit[finding.code], finding.params)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

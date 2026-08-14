@@ -84,6 +84,15 @@ export async function clearSession(): Promise<void> {
   (await cookies()).delete(cookieName);
 }
 
+/**
+ * Separate from canReadGuild even though the predicate is currently identical.
+ * Read access is the one likely to be loosened later, and a single shared helper
+ * would silently carry that loosening onto the write path.
+ */
+export function canWriteGuild(guild: DiscordUserGuild): boolean {
+  return canReadGuild(guild);
+}
+
 export function canReadGuild(guild: DiscordUserGuild): boolean {
   const administrator = 1n << 3n;
   return guild.owner || (BigInt(guild.permissions) & administrator) === administrator;

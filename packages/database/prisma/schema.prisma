@@ -8,26 +8,31 @@ datasource db {
 }
 
 model DiscordGuild {
-  id        String   @id
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  roles     DiscordRole[]
-  channels  DiscordChannel[]
-  snapshots PermissionSnapshot[]
-  plans     PermissionChangePlan[]
-  findings  AuditFinding[]
+  id              String   @id
+  name            String
+  ownerId         String   @default("")
+  membersSyncedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  roles           DiscordRole[]
+  channels        DiscordChannel[]
+  members         GuildMember[]
+  snapshots       PermissionSnapshot[]
+  plans           PermissionChangePlan[]
 }
 
 model DiscordRole {
-  id          String @id
-  guildId     String
-  guild       DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  name        String
-  color       String?
-  position    Int
-  managed     Boolean @default(false)
-  permissions Json
+  id       String @id
+  guildId  String
+  guild    DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  name     String
+  color    String?
+  position Int
+  managed  Boolean @default(false)
+  /// Discord permission bitfield as a decimal string. Never a list of names:
+  /// a name list cannot represent a permission Discord adds later, and the
+  /// previous design silently dropped every unrecognised one on write.
+  permissions String
   updatedAt   DateTime @updatedAt
 
   @@index([guildId])
@@ -39,12 +44,38 @@ model DiscordChannel {
   guild      DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
   parentId   String?
   name       String
-  type       String
+  /// Raw Discord channel type number, so forum/stage/media/thread channels survive.
+  type       Int
+  position   Int @default(0)
   overwrites Json
   updatedAt  DateTime @updatedAt
 
   @@index([guildId])
   @@index([parentId])
+}
+
+model GuildMember {
+  guildId    String
+  userId     String
+  guild      DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  username   String
+  globalName String?
+  nick       String?
+  avatar     String?
+  /// Postgres text[]. A join table would mean tens of thousands of rows churned
+  /// per sync for no query benefit — the engine takes an in-memory array anyway.
+  roleIds    String[]
+  joinedAt   DateTime
+  pending    Boolean @default(false)
+  /// A timed-out member loses SendMessages regardless of computed permissions.
+  timeoutUntil DateTime?
+  /// Explicitly set on every sync run, NOT @updatedAt: Prisma does not bump
+  /// @updatedAt when an upsert changes no columns, so pruning by timestamp
+  /// would delete every member who happened not to change.
+  syncedAt   DateTime
+
+  @@id([guildId, userId])
+  @@index([guildId, username])
 }
 
 model PermissionSnapshot {
@@ -60,52 +91,86 @@ model PermissionSnapshot {
 }
 
 model PermissionChangePlan {
-  id        String @id @default(cuid())
-  guildId   String
-  guild     DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id                     String @id @default(cuid())
+  guildId                String
+  guild                  DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
   createdByDiscordUserId String
-  reason    String?
-  status    String @default("draft")
-  warnings  Json
-  createdAt DateTime @default(now())
-  operations PermissionChangeOperation[]
-  executions PermissionChangeExecution[]
+  reason                 String?
+  /// draft | executing | applied | partial | failed | rolled-back.
+  /// `partial` is required: applying continues past a failure, so "some landed"
+  /// is a normal outcome that applied|failed cannot express.
+  status                 String @default("draft")
+  /// Frozen copy for the audit trail only. Warnings are recomputed server-side
+  /// on every render — a stale warning gating a write is worse than none.
+  warnings               Json
+  baseSnapshotId         String?
+  rollbackOfPlanId       String?
+  createdAt              DateTime @default(now())
+  operations             PermissionChangeOperation[]
+  executions             PermissionChangeExecution[]
+
+  @@index([guildId, createdAt])
 }
 
 model PermissionChangeOperation {
-  id       String @id @default(cuid())
-  planId   String
-  plan     PermissionChangePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  kind     String
-  targetId String
-  before   Json
-  after    Json
-  warnings Json
-  included Boolean @default(true)
-  order    Int
+  id         String @id @default(cuid())
+  planId     String
+  plan       PermissionChangePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// set-role-permissions | set-channel-overwrite | delete-channel-overwrite
+  kind       String
+  /// Explicit columns instead of a `channelId:targetType:targetId` composite.
+  /// The old composite had to be split with string surgery at apply time, which
+  /// is exactly why nothing ever validated that the channel belonged to the guild.
+  roleId     String?
+  channelId  String?
+  targetType String?
+  targetId   String?
+  /// Masked intent: the only bits this operation may alter. Everything outside
+  /// it is carried over from the live value at apply time.
+  touchedBits   String
+  nextAllow     String
+  nextDeny      String
+  /// Live values observed when the plan was created, for drift detection.
+  expectedAllow String
+  expectedDeny  String
+  included      Boolean @default(true)
+  order         Int
+  results       PermissionChangeOperationResult[]
+
+  @@index([planId, order])
 }
 
 model PermissionChangeExecution {
-  id        String @id @default(cuid())
-  planId    String
-  plan      PermissionChangePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  status    String
-  result    Json
-  startedAt DateTime @default(now())
+  id         String @id @default(cuid())
+  planId     String
+  plan       PermissionChangePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  status     String
+  startedAt  DateTime @default(now())
   finishedAt DateTime?
+  results    PermissionChangeOperationResult[]
 }
 
-model AuditFinding {
+/// One row per execution x operation. Replaces a single opaque `result` JSON blob,
+/// which is why per-operation reporting was previously impossible.
+model PermissionChangeOperationResult {
   id          String @id @default(cuid())
-  guildId     String
-  guild       DiscordGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  severity    String
-  title       String
-  description String
-  channelId   String?
-  roleId      String?
-  createdAt   DateTime @default(now())
+  executionId String
+  execution   PermissionChangeExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  operationId String
+  operation   PermissionChangeOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  /// applied | skipped-noop | skipped-conflict | failed | unknown.
+  /// `unknown` matters: a write that times out may or may not have landed, and a
+  /// rollback must not invert an operation that never happened.
+  status          String
+  liveBeforeAllow String?
+  liveBeforeDeny  String?
+  liveAfterAllow  String?
+  liveAfterDeny   String?
+  httpStatus      Int?
+  discordCode     Int?
+  attempts        Int @default(1)
+  detail          String?
+  finishedAt      DateTime @default(now())
 
-  @@index([guildId, severity])
+  @@index([executionId])
 }
-

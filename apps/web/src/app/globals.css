@@ -1,11 +1,72 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens.
+ *
+ * Every colour used to be an ad-hoc utility literal: the card shell alone was
+ * copy-pasted eighteen times and the primary button five times with two
+ * different paddings. Semantic names here mean a permission state has one
+ * definition instead of one per file.
+ */
+@theme {
+  --color-surface: #0b1120;
+  --color-surface-raised: #111a2e;
+  --color-surface-overlay: #16213a;
+  --color-line: #1f2b45;
+  --color-line-strong: #2c3b5c;
+
+  --color-ink: #eef2f9;
+  --color-ink-muted: #98a5bd;
+  --color-ink-faint: #6b7a96;
+
+  --color-brand: #5865f2;
+  --color-brand-strong: #4752c4;
+
+  --color-allow: #2dd4a7;
+  --color-allow-dim: #10352c;
+  --color-deny: #f4788a;
+  --color-deny-dim: #3a1620;
+  --color-inherit: #7c8aa5;
+  --color-inherit-dim: #1a2235;
+
+  --color-critical: #f87171;
+  --color-critical-dim: #3a1618;
+  --color-warning: #fbbf24;
+  --color-warning-dim: #37280c;
+  --color-info: #60a5fa;
+  --color-info-dim: #14243d;
+
+  --radius-card: 0.75rem;
+}
+
 :root {
   color-scheme: dark;
 }
 
 body {
-  margin: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/* The channel tree and matrix can be long; let the browser skip offscreen rows
+   instead of pulling in a virtualisation library. */
+.defer-paint {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.25rem;
+}
+
+/* Keyboard focus was entirely unstyled before. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

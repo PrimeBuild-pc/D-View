@@ -1,55 +1,125 @@
 import Link from 'next/link';
-import { getLang, t } from '@/lib/i18n';
+import { prisma } from '@dpd/database';
+import { t } from '@/lib/i18n';
+import { resolveLang } from '@/lib/i18n/server';
 import { canReadGuild, getSession } from '@/lib/session';
+import { Badge, Button, Card, CardBody, EmptyState, LinkButton, Notice } from '@/components/ui';
+import { IconRefresh } from '@/components/icons';
+import { RelativeTime } from '@/components/relative-time';
 
-export default async function GuildsPage({ searchParams }: { searchParams: Promise<{ lang?: string; sync?: string }> }) {
-  const [session, params] = await Promise.all([getSession(), searchParams]);
-  const lang = getLang(params.lang);
+export const dynamic = 'force-dynamic';
+
+export default async function GuildsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sync?: string; detail?: string }>;
+}) {
+  const [session, params, lang] = await Promise.all([getSession(), searchParams, resolveLang()]);
   const copy = t(lang);
+
   if (!session) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
-        <h1 className="text-2xl font-semibold text-white">{copy.loginRequired}</h1>
-        <p className="mt-2 text-slate-400">{copy.loginHelp}</p>
-        <a className="mt-4 inline-block rounded bg-indigo-600 px-4 py-2 text-white" href="/api/auth/login">{copy.login}</a>
-      </div>
+      <Card className="mx-auto max-w-lg">
+        <CardBody className="space-y-3">
+          <h1 className="text-2xl font-semibold">{copy.auth.loginRequired}</h1>
+          <p className="text-ink-muted">{copy.auth.loginHelp}</p>
+          <LinkButton tone="primary" href="/api/auth/login">
+            {copy.auth.login}
+          </LinkButton>
+        </CardBody>
+      </Card>
     );
   }
 
-  const readableGuilds = session.guilds.filter(canReadGuild);
-  const syncMessage = params.sync === 'unauthorized' ? copy.syncUnauthorized : undefined;
+  const readable = session.guilds.filter(canReadGuild);
+  // Sync state per server, so "open" is no longer a coin flip into an empty page.
+  const synced = await prisma.discordGuild.findMany({
+    where: { id: { in: readable.map((guild) => guild.id) } },
+    select: { id: true, snapshots: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } } },
+  });
+  const lastSync = new Map(synced.map((row) => [row.id, row.snapshots[0]?.createdAt ?? null]));
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">{copy.readableGuilds}</h1>
-          <p className="mt-1 text-slate-400">{copy.signedInAs} {session.user.username}. {copy.showingGuilds}</p>
-        </div>
-        <div className="flex gap-3 text-sm">
-          <Link href="?lang=en" className={lang === 'en' ? 'text-white' : 'text-slate-400'}>EN</Link>
-          <Link href="?lang=it" className={lang === 'it' ? 'text-white' : 'text-slate-400'}>IT</Link>
-          <Link href="?lang=zh" className={lang === 'zh' ? 'text-white' : 'text-slate-400'}>中文</Link>
-          <form action="/api/auth/logout" method="post" className="contents">
-            <button type="submit" className="border-0 bg-transparent p-0 text-slate-300 cursor-pointer">{copy.logout}</button>
-          </form>
-        </div>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold">{copy.guilds.title}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{copy.tagline}</p>
       </div>
-      {syncMessage ? <p className="mt-4 rounded border border-amber-800 bg-amber-950 p-3 text-sm text-amber-200">{syncMessage}</p> : null}
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        {readableGuilds.map((guild) => (
-          <div key={guild.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <h2 className="font-medium text-white">{guild.name}</h2>
-            <p className="text-sm text-slate-400">{guild.owner ? 'Owner' : 'Administrator'} · {copy.readAllowed}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <form action={`/api/guilds/${guild.id}/sync?lang=${lang}`} method="post">
-                <button className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white">{copy.syncNow}</button>
-              </form>
-              <Link href={`/guilds/${guild.id}?lang=${lang}`} className="text-sm text-indigo-300">{copy.openSnapshot}</Link>
-            </div>
-          </div>
-        ))}
-        {readableGuilds.length === 0 && <p className="text-slate-400">{copy.noGuilds}</p>}
-      </div>
+
+      {params.sync === 'unauthorized' ? <Notice tone="critical">{copy.sync.unauthorized}</Notice> : null}
+      {params.sync === 'failed' ? (
+        <Notice tone="critical" title={copy.sync.failed}>
+          {/* The real cause used to end up in the server console only. */}
+          {params.detail ? <code className="text-xs break-all">{params.detail}</code> : null}
+        </Notice>
+      ) : null}
+      {params.sync === 'missing-token' ? (
+        <Notice tone="warning" title={copy.sync.missingToken}>
+          <Link href="/setup" className="underline">
+            {copy.nav.setup}
+          </Link>
+        </Notice>
+      ) : null}
+
+      {readable.length === 0 ? (
+        <EmptyState
+          title={copy.guilds.empty}
+          description={copy.guilds.emptyHelp}
+          action={
+            <LinkButton href="/setup" tone="default">
+              {copy.nav.setup}
+            </LinkButton>
+          }
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {readable.map((guild) => {
+            const when = lastSync.get(guild.id) ?? null;
+            return (
+              <Card key={guild.id}>
+                <CardBody className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {/* guild.icon was captured at login and never rendered. */}
+                    {guild.icon ? (
+                      <img
+                        src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`}
+                        alt=""
+                        className="size-10 rounded-xl"
+                      />
+                    ) : (
+                      <span className="flex size-10 items-center justify-center rounded-xl bg-surface-overlay text-sm font-semibold text-ink-muted">
+                        {guild.name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{guild.name}</p>
+                      <Badge tone={guild.owner ? 'brand' : 'neutral'}>
+                        {guild.owner ? copy.guilds.owner : copy.guilds.administrator}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-ink-faint">
+                    {when ? <RelativeTime date={when.toISOString()} lang={lang} /> : copy.guilds.neverSynced}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <LinkButton href={`/guilds/${guild.id}`} tone={when ? 'primary' : 'default'}>
+                      {copy.guilds.open}
+                    </LinkButton>
+                    <form action={`/api/guilds/${guild.id}/sync`} method="post">
+                      <Button type="submit" tone={when ? 'default' : 'primary'}>
+                        <IconRefresh />
+                        {copy.guilds.syncNow}
+                      </Button>
+                    </form>
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,106 +1,131 @@
 import { z } from 'zod';
 
-export type Brand<T, Name extends string> = T & { readonly __brand: Name };
-export type GuildId = Brand<string, 'GuildId'>;
-export type RoleId = Brand<string, 'RoleId'>;
-export type ChannelId = Brand<string, 'ChannelId'>;
-export type UserId = Brand<string, 'UserId'>;
+export * from './permissions';
 
-export const basePermissions = [
-  'ViewChannel',
-  'SendMessages',
-  'ReadMessageHistory',
-  'AddReactions',
-  'CreatePublicThreads',
-  'CreatePrivateThreads',
-  'SendMessagesInThreads',
-  'Connect',
-  'Speak',
-  'ManageMessages',
-  'ManageThreads',
-  'MentionEveryone',
-  'ManageChannels',
-  'Administrator',
-] as const;
+/**
+ * Discord channel type numbers we care about, kept raw in the snapshot.
+ *
+ * The previous sync mapped a handful of numbers to three names and returned `[]`
+ * for everything else, so forum, stage, media and thread channels vanished from
+ * the snapshot entirely — and the audit then reported those servers as clean.
+ * Unrecognised types are now preserved and surfaced as 'unsupported' instead.
+ */
+export const channelTypeNumbers = {
+  text: 0,
+  voice: 2,
+  category: 4,
+  announcement: 5,
+  announcementThread: 10,
+  publicThread: 11,
+  privateThread: 12,
+  stage: 13,
+  directory: 14,
+  forum: 15,
+  media: 16,
+} as const;
 
-export type PermissionName = (typeof basePermissions)[number] | string;
-export type ChannelType = 'category' | 'text' | 'voice';
+export type ChannelKind =
+  | 'category'
+  | 'text'
+  | 'announcement'
+  | 'voice'
+  | 'stage'
+  | 'forum'
+  | 'media'
+  | 'thread'
+  | 'unsupported';
+
+export function channelKind(type: number): ChannelKind {
+  switch (type) {
+    case channelTypeNumbers.category:
+      return 'category';
+    case channelTypeNumbers.text:
+      return 'text';
+    case channelTypeNumbers.announcement:
+      return 'announcement';
+    case channelTypeNumbers.voice:
+      return 'voice';
+    case channelTypeNumbers.stage:
+      return 'stage';
+    case channelTypeNumbers.forum:
+      return 'forum';
+    case channelTypeNumbers.media:
+      return 'media';
+    case channelTypeNumbers.announcementThread:
+    case channelTypeNumbers.publicThread:
+    case channelTypeNumbers.privateThread:
+      return 'thread';
+    default:
+      return 'unsupported';
+  }
+}
+
+/** Threads have no overwrites of their own; they resolve against their parent channel. */
+export function isThread(type: number): boolean {
+  return (
+    type === channelTypeNumbers.announcementThread ||
+    type === channelTypeNumbers.publicThread ||
+    type === channelTypeNumbers.privateThread
+  );
+}
+
 export type OverwriteTargetType = 'role' | 'member';
 
 export interface PermissionOverwrite {
   targetType: OverwriteTargetType;
-  targetId: RoleId | UserId;
-  allow: PermissionName[];
-  deny: PermissionName[];
+  targetId: string;
+  allow: string;
+  deny: string;
 }
 
 export interface DiscordRoleSnapshot {
-  id: RoleId;
+  id: string;
   name: string;
   color?: string;
   position: number;
   managed: boolean;
-  permissions: PermissionName[];
+  permissions: string;
 }
 
 export interface DiscordChannelSnapshot {
-  id: ChannelId;
+  id: string;
   name: string;
-  type: ChannelType;
-  parentId?: ChannelId;
+  type: number;
+  parentId?: string;
+  position: number;
   overwrites: PermissionOverwrite[];
 }
 
 export interface PermissionSnapshot {
-  schemaVersion: '1.0.0';
+  schemaVersion: '2.0.0';
   exportedAt: string;
   guild: {
-    id: GuildId;
+    id: string;
     name: string;
-    everyoneRoleId: RoleId;
+    ownerId: string;
+    everyoneRoleId: string;
   };
   roles: DiscordRoleSnapshot[];
   channels: DiscordChannelSnapshot[];
   metadata?: Record<string, unknown>;
 }
 
-export const discordPermissionBits: Record<string, bigint> = {
-  Administrator: 1n << 3n,
-  ManageChannels: 1n << 4n,
-  AddReactions: 1n << 6n,
-  ViewChannel: 1n << 10n,
-  SendMessages: 1n << 11n,
-  ManageMessages: 1n << 13n,
-  ReadMessageHistory: 1n << 16n,
-  MentionEveryone: 1n << 17n,
-  Connect: 1n << 20n,
-  Speak: 1n << 21n,
-  ManageThreads: 1n << 34n,
-  CreatePublicThreads: 1n << 35n,
-  CreatePrivateThreads: 1n << 36n,
-  SendMessagesInThreads: 1n << 38n,
-};
+export const SNAPSHOT_SCHEMA_VERSION = '2.0.0';
 
-export function permissionsFromBitfield(bitfield: bigint | string | number): PermissionName[] {
-  const bits = BigInt(bitfield);
-  return Object.entries(discordPermissionBits)
-    .filter(([, bit]) => (bits & bit) === bit)
-    .map(([name]) => name);
-}
-
-export function permissionsToBitfield(permissions: PermissionName[]): string {
-  return permissions
-    .reduce((bits, permission) => bits | (discordPermissionBits[permission] ?? 0n), 0n)
-    .toString();
-}
-
-export const permissionNameSchema = z.string().min(1);
+/**
+ * Permissions travel as decimal strings — Discord's own wire format.
+ *
+ * There is deliberately no enum of permission names here. A name enum cannot
+ * represent a permission Discord ships after this build, so every export/import
+ * round trip through one silently drops the permissions it does not recognise.
+ */
+export const permissionBitsSchema = z.string().regex(/^\d+$/, 'Expected a decimal permission bitfield');
 
 export const permissionOverwriteSchema = z.object({
   targetType: z.enum(['role', 'member']),
   targetId: z.string().min(1),
-  allow: z.array(permissionNameSchema),
-  deny: z.array(permissionNameSchema),
+  allow: permissionBitsSchema,
+  deny: permissionBitsSchema,
 });
 
 export const roleSnapshotSchema = z.object({
@@ -109,26 +134,45 @@ export const roleSnapshotSchema = z.object({
   color: z.string().optional(),
   position: z.number().int(),
   managed: z.boolean(),
-  permissions: z.array(permissionNameSchema),
+  permissions: permissionBitsSchema,
 });
 
 export const channelSnapshotSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  type: z.enum(['category', 'text', 'voice']),
+  type: z.number().int(),
   parentId: z.string().optional(),
+  position: z.number().int(),
   overwrites: z.array(permissionOverwriteSchema),
 });
 
 export const permissionSnapshotSchema = z.object({
-  schemaVersion: z.literal('1.0.0'),
-  exportedAt: z.string().datetime(),
+  schemaVersion: z.literal(SNAPSHOT_SCHEMA_VERSION),
+  exportedAt: z.iso.datetime(),
   guild: z.object({
     id: z.string().min(1),
     name: z.string().min(1),
+    ownerId: z.string().min(1),
     everyoneRoleId: z.string().min(1),
   }),
   roles: z.array(roleSnapshotSchema),
   channels: z.array(channelSnapshotSchema),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
+
+/**
+ * Snapshots written before the bitfield migration are not upgradable: they stored
+ * permission *names*, and the name table they were written against had already
+ * dropped every permission it did not know. Reconstructing bits from them would
+ * reintroduce that loss at the exact point it does the most damage, so they are
+ * rejected and the guild is re-synced instead.
+ */
+export function snapshotVersionOf(data: unknown): string | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const version = (data as { schemaVersion?: unknown }).schemaVersion;
+  return typeof version === 'string' ? version : null;
+}
+
+export function isCurrentSnapshot(data: unknown): boolean {
+  return snapshotVersionOf(data) === SNAPSHOT_SCHEMA_VERSION;
+}
