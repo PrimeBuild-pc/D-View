@@ -7,6 +7,9 @@ import { Card, CardBody, EmptyState, LinkButton } from '@/components/ui';
 import { GuildNav } from '@/components/guild-nav';
 import { RelativeTime } from '@/components/relative-time';
 import { SyncButton } from './sync-button';
+import { WriteBanner } from '@/components/write-toggle';
+import { writeState } from '@/lib/writes';
+import { canWriteGuild } from '@/lib/session';
 import {
   IconAlert,
   IconHash,
@@ -52,7 +55,10 @@ export default async function GuildLayout({
     { href: `${base}/audit`, label: copy.nav.audit, icon: <IconAlert /> },
     { href: `${base}/history`, label: copy.nav.history, icon: <IconRefresh /> },
     { href: `${base}/changes`, label: copy.nav.changes, icon: <IconRefresh /> },
+    { href: `${base}/settings`, label: copy.nav.settings, icon: <IconShield /> },
   ];
+
+  const writes = canWriteGuild(access.guild) ? await writeState(guildId) : null;
 
   const latest = await prisma.permissionSnapshot.findFirst({
     where: { guildId },
@@ -101,7 +107,10 @@ export default async function GuildLayout({
         </Card>
       </aside>
 
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 space-y-4">
+        {writes ? <WriteBanner guildId={guildId} state={writes} copy={copy} lang={lang} /> : null}
+        {children}
+      </div>
     </div>
   );
 }

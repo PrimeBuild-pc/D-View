@@ -151,16 +151,42 @@ through a reviewable plan:
 
 ### Unlocking writes
 
-Writing is unlocked **from the dashboard**, on the server's own page — no file to
-edit, no restart. It is granted as a **60-minute window that closes itself**,
-because a flag that is simply "on" stays on silently and indefinitely, which is
-the failure mode worth designing against.
+Writing is controlled **entirely from the dashboard**, per server, under
+**Settings** — no file to edit, no restart. Two policies:
+
+| Policy | Behaviour |
+|---|---|
+| **Temporary unlock** *(default)* | Unlocking lasts **60 minutes**, then locks itself automatically. |
+| **Stay unlocked** | Once unlocked it stays unlocked until you switch it off. |
+
+The default is the temporary one because a switch left on stays on silently and
+nothing reminds you — but it is a preference, not a restriction. Pick whichever
+you want, and switch at any time. Changing policy always leaves writing locked,
+so switching is never itself the thing that turns it on.
+
+While writing is unlocked, **every page of that server shows a banner** saying so,
+and in temporary mode it shows when it closes.
 
 The bot's role must sit **above** every role you intend to edit — Discord refuses
 otherwise, and a bot can only grant permissions it holds itself.
 
-If you want writing to be impossible regardless of what anyone clicks, set
-`DISCORD_WRITES_LOCKED=true` in `.env`. The toggle is then disabled and says so.
+<details>
+<summary><b>Fixing the decision in <code>.env</code> instead</b></summary>
+
+<br />
+
+If you would rather the answer not be clickable at all, two variables override
+the dashboard entirely. `LOCKED` wins if both are set.
+
+```bash
+DISCORD_WRITES_LOCKED=true   # writing is impossible, whatever the UI says
+DISCORD_WRITES_ALWAYS=true   # writing is always on, no unlocking needed
+```
+
+With either set, the Settings page shows the state and explains that
+configuration is in charge, rather than offering controls that would do nothing.
+
+</details>
 
 > [!WARNING]
 > Test on a throwaway channel first. Never test on `@everyone`.
@@ -246,6 +272,7 @@ because Discord renders it at 32px in member lists.
 - **These endpoints have no ETag.** Live state is re-read immediately before each write to narrow the window, but a change made in the same instant can still be missed. D-View reports what it did rather than claiming atomicity.
 - **Snapshots from before the bitfield migration cannot be upgraded.** They stored permission *names* against a table that had already dropped what it did not recognise. Re-sync instead.
 - **Verification is not required** to run this. Discord only requires it past 100 servers, and a self-hosted bot lives in your own.
+- **Versions.** The running version is shown in the dashboard footer and on `/setup`. A release is cut automatically when the version in `package.json` changes on `main` and the checks pass.
 
 ---
 

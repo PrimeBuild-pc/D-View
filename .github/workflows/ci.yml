@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The Prisma client is generated code the checked-in sources import, so it
+      # has to exist before anything type-checks.
+      - run: pnpm --filter @dpd/database prisma:generate
+
+      - run: pnpm -r typecheck
+      - run: pnpm lint
+      - run: pnpm -r test
+
+      # A build catches what typecheck cannot: server-only modules reaching
+      # client components, which is a real failure this project has already hit.
+      - run: pnpm --filter @dpd/web build
+        env:
+          AUTH_SECRET: build-only-secret-at-least-32-characters-long

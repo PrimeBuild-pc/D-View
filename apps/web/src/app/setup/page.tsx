@@ -1,7 +1,8 @@
 import { prisma } from '@dpd/database';
 import { t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
-import { writesLocked } from '@/lib/writes';
+import { writesForcedAlways, writesLocked } from '@/lib/writes';
+import { appVersion } from '@/lib/version';
 import { Badge, Card, CardBody, LinkButton, SectionTitle } from '@/components/ui';
 import { IconCheck, IconCross, IconDash } from '@/components/icons';
 
@@ -82,7 +83,11 @@ export default async function SetupPage() {
   checks.push({
     label: copy.setup.writes,
     level: 'optional',
-    detail: writesLocked() ? copy.setup.writesLocked : copy.setup.writesUnlockable,
+    detail: writesLocked()
+      ? copy.setup.writesLocked
+      : writesForcedAlways()
+        ? copy.writes.alwaysTitle
+        : copy.setup.writesUnlockable,
     help: copy.setup.writesHelp,
   });
 
@@ -96,6 +101,7 @@ export default async function SetupPage() {
       <div>
         <h1 className="text-xl font-semibold">{copy.setup.title}</h1>
         <p className="mt-1 text-sm text-ink-muted">{copy.setup.help}</p>
+        <p className="mt-1 text-xs text-ink-faint">D-View v{appVersion()}</p>
       </div>
 
       <Card>

@@ -4,6 +4,7 @@ import { t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { getSession } from '@/lib/session';
 import { Brand, LanguagePicker, UserMenu } from '@/components/shell';
+import { appVersion } from '@/lib/version';
 
 export const metadata: Metadata = {
   title: 'D-View',
@@ -47,6 +48,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main id="main" className="mx-auto max-w-[110rem] px-4 py-6">
           {children}
         </main>
+        <footer className="mx-auto max-w-[110rem] px-4 pt-2 pb-6 text-xs text-ink-faint">
+          D-View v{appVersion()}
+        </footer>
       </body>
     </html>
   );

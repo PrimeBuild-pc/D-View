@@ -6,8 +6,7 @@ import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { deserialiseOperation, loadSnapshot, type PlanWarning } from '@/lib/plans';
 import { canWriteGuild } from '@/lib/session';
-import { writeWindow } from '@/lib/writes';
-import { WriteToggle } from '@/components/write-toggle';
+import { writeState } from '@/lib/writes';
 import { Badge, Card, CardBody, LinkButton, Notice, SectionTitle } from '@/components/ui';
 import { OperationSummary } from '@/components/operation-summary';
 import { RelativeTime } from '@/components/relative-time';
@@ -42,7 +41,7 @@ export default async function PlanPage({
   const snapshot = load.status === 'ok' ? load.snapshot : null;
   const warnings = (plan.warnings as unknown as PlanWarning[]) ?? [];
   const critical = warnings.filter((warning) => warning.severity === 'critical');
-  const writes = await writeWindow(guildId);
+  const writes = await writeState(guildId);
   const canApply = plan.status === 'draft' && canWriteGuild(access.guild);
   const latestExecution = plan.executions[0];
 
@@ -109,9 +108,14 @@ export default async function PlanPage({
         <Card className="border-critical/30">
           <CardBody className="space-y-3">
             {!writes.enabled ? (
-              /* Unlocking is offered right here, so applying a plan does not
-                 mean leaving the page to go and edit a file. */
-              <WriteToggle guildId={guildId} window={writes} copy={copy} lang={lang} />
+              /* Points at settings rather than embedding a second copy of the
+                 controls, so there is one place that decides this. */
+              <Notice tone="warning" title={copy.writes.off}>
+                {copy.writes.offHelp}{' '}
+                <Link href={`/guilds/${guildId}/settings`} className="underline">
+                  {copy.nav.settings}
+                </Link>
+              </Notice>
             ) : (
               <ApplyForm
                 action={`/api/guilds/${guildId}/plans/${planId}/execute`}

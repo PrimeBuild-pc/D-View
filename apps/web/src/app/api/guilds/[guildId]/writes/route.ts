@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import { canWriteGuild, getSession } from '@/lib/session';
-import { closeWriteWindow, openWriteWindow, writesLocked } from '@/lib/writes';
+import {
+  disableWrites,
+  enableWrites,
+  setWriteMode,
+  writesForcedAlways,
+  writesLocked,
+  type WriteMode,
+} from '@/lib/writes';
 
 /**
- * Open or close the window in which D-View may write to Discord.
+ * Change the write policy, or turn writing on and off within it.
  *
- * Same authorisation as applying a plan — this toggle is a convenience over
- * editing `.env` and restarting, not a second security boundary. The boundary is
- * `canWriteGuild` plus the per-plan confirmation, both of which still apply.
+ * Same authorisation as applying a plan. This is a convenience over editing a
+ * file and restarting, not a second security boundary — `canWriteGuild` and the
+ * per-plan confirmation are the boundaries, and both still apply.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
@@ -21,24 +28,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
   const allowed = session?.guilds.some((guild) => guild.id === guildId && canWriteGuild(guild));
   if (!allowed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (writesLocked()) {
+  if (writesLocked() || writesForcedAlways()) {
     return NextResponse.json(
-      { error: 'DISCORD_WRITES_LOCKED is set, so writes cannot be unlocked from the dashboard.' },
+      { error: 'Write access is fixed by configuration and cannot be changed from the dashboard.' },
       { status: 403 },
     );
   }
 
   const form = await request.formData().catch(() => null);
-  const enable = form?.get('enable') === 'true';
+  const action = form?.get('action');
+  const back = new URL(`/guilds/${guildId}/settings`, request.url);
 
-  if (enable) {
-    const until = await openWriteWindow(guildId);
-    return NextResponse.redirect(
-      new URL(`/guilds/${guildId}?writes=opened&until=${until.toISOString()}`, request.url),
-      303,
-    );
+  if (action === 'mode') {
+    const mode = form?.get('mode') === 'always' ? 'always' : 'window';
+    await setWriteMode(guildId, mode as WriteMode);
+    back.searchParams.set('writes', 'mode');
+    back.searchParams.set('mode', mode);
+    return NextResponse.redirect(back, 303);
   }
 
-  await closeWriteWindow(guildId);
-  return NextResponse.redirect(new URL(`/guilds/${guildId}?writes=closed`, request.url), 303);
+  if (action === 'enable') {
+    const mode = form?.get('mode') === 'always' ? 'always' : 'window';
+    const until = await enableWrites(guildId, mode as WriteMode);
+    back.searchParams.set('writes', 'opened');
+    if (until) back.searchParams.set('until', until.toISOString());
+    return NextResponse.redirect(back, 303);
+  }
+
+  await disableWrites(guildId);
+  back.searchParams.set('writes', 'closed');
+  return NextResponse.redirect(back, 303);
 }

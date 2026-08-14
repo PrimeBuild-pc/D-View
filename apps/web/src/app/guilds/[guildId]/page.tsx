@@ -8,9 +8,6 @@ import { loadSnapshot } from '@/lib/plans';
 import { Badge, Card, CardBody, LinkButton, Notice, SectionTitle, Stat } from '@/components/ui';
 import { SnapshotGate } from '@/components/snapshot-gate';
 import { RelativeTime } from '@/components/relative-time';
-import { WriteToggle } from '@/components/write-toggle';
-import { writeWindow } from '@/lib/writes';
-import { canWriteGuild } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,14 +16,14 @@ export default async function OverviewPage({
   searchParams,
 }: {
   params: Promise<{ guildId: string }>;
-  searchParams: Promise<{ sync?: string; detail?: string; writes?: string }>;
+  searchParams: Promise<{ sync?: string; detail?: string }>;
 }) {
   const { guildId } = await params;
   const [access, query, lang] = await Promise.all([guildAccess(guildId), searchParams, resolveLang()]);
   const copy = t(lang);
   if (!access) return null;
 
-  const [load, writes] = await Promise.all([loadSnapshot(guildId), writeWindow(guildId)]);
+  const load = await loadSnapshot(guildId);
 
   return (
     <div className="space-y-5">
@@ -58,13 +55,6 @@ export default async function OverviewPage({
             {copy.nav.setup}
           </Link>
         </Notice>
-      ) : null}
-
-      {query.writes === 'opened' ? <Notice tone="warning">{copy.writes.opened}</Notice> : null}
-      {query.writes === 'closed' ? <Notice tone="allow">{copy.writes.closed}</Notice> : null}
-
-      {canWriteGuild(access.guild) ? (
-        <WriteToggle guildId={guildId} window={writes} copy={copy} lang={lang} />
       ) : null}
 
       {load.status !== 'ok' ? (
