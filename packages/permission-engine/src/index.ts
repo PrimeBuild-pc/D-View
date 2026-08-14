@@ -411,7 +411,7 @@ export type AuditCode =
   | 'public-channel-in-private-category'
   | 'conflicting-overwrite'
   | 'member-overwrite-exception'
-  | 'desynced-channel'
+  | 'desynced-channels'
   | 'redundant-overwrite'
   | 'many-overwrites'
   | 'everyone-read-only'
@@ -530,15 +530,6 @@ export function auditSnapshot(snapshot: PermissionSnapshot): AuditFinding[] {
       });
     }
 
-    if (channelSyncState(index, channel.id) === 'desynced') {
-      findings.push({
-        code: 'desynced-channel',
-        severity: 'info',
-        params: { channel: channel.name },
-        channelId: channel.id,
-      });
-    }
-
     const everyoneSubject: PermissionSubject = { kind: 'role', roleId: everyoneId };
     const everyoneHere = explainChannelPermissions(index, channel.id, everyoneSubject).raw;
     const everyoneSees = (everyoneHere & VIEW_CHANNEL) === VIEW_CHANNEL;
@@ -582,6 +573,23 @@ export function auditSnapshot(snapshot: PermissionSnapshot): AuditFinding[] {
         channelId: channel.id,
       });
     }
+  }
+
+  // De-sync is reported once, as a ratio. Emitting it per channel drowned the
+  // audit: on a normally-customised server almost every channel differs from its
+  // category, so the rule fired ~90% of the time and buried the critical findings
+  // under its own output. The per-channel detail lives in the explorer, which has
+  // a filter for exactly this.
+  const parented = [...index.channels.values()].filter(
+    (channel) => channelKind(channel.type) !== 'category' && !isThread(channel.type) && channel.parentId,
+  );
+  const desynced = parented.filter((channel) => channelSyncState(index, channel.id) === 'desynced');
+  if (desynced.length > 0) {
+    findings.push({
+      code: 'desynced-channels',
+      severity: 'info',
+      params: { count: desynced.length, total: parented.length },
+    });
   }
 
   // Critical first. The old engine emitted every Administrator warning before any
