@@ -1,6 +1,5 @@
 <div align="center">
-  <h1>D-View</h1>
-  <p><strong>See who can actually do what on your Discord server — and change it safely.</strong></p>
+  <img src="assets/banner.png" alt="D-View — see who can actually do what on your Discord server, and change it safely" width="100%" />
   <p>
     <a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
     <a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
@@ -43,7 +42,7 @@ You will need [Node.js](https://nodejs.org) (recent LTS), [pnpm](https://pnpm.io
 
 ### 1. Create a Discord application
 
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**.
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**. Use [`assets/icon.png`](assets/icon.png) as the app icon if you want the one in the screenshots.
 2. Under **OAuth2**, copy the **Client ID** and **Client Secret**.
 3. Still under **OAuth2**, add this redirect URL exactly:
    ```
@@ -116,7 +115,23 @@ apps/web                      Next.js app: UI, API routes, Discord REST calls
 packages/permission-engine    Pure permission resolution. No network, no database.
 packages/shared               Snapshot types, zod schemas, Discord permission bits
 packages/database             Prisma client and schema
+assets                        Brand assets and the sources they are generated from
 ```
+
+### Brand assets
+
+| File | Use |
+|---|---|
+| `assets/icon.svg` | Source for the mark. Pure geometry, no text, so it renders identically everywhere. |
+| `assets/icon.png` | 512×512 — upload this as the Discord application icon. |
+| `assets/icon-128.png` | Small copy, if something wants a pre-scaled one. |
+| `assets/banner.png` | The README header. |
+| `assets/banner.html` | Source for the banner; screenshot it with headless Chrome to regenerate. |
+
+The mark is the same shield the app uses in its own header, carrying an allowed
+row and a denied row — what the product actually shows. Discord crops avatars to
+a circle, so nothing sits near the corners, and the detail is deliberately coarse
+because Discord renders it at 32px in member lists.
 
 The permission engine is deliberately dependency-free and side-effect-free, which is what lets the exact same code run on the server and in your browser. That is why selecting a role or channel in the Explorer is instant rather than a page load.
 

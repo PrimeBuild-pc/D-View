@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="D-View">
+  <title>D-View</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2742"/>
+      <stop offset="1" stop-color="#0b1120"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#8791ff"/>
+      <stop offset="0.55" stop-color="#5865f2"/>
+      <stop offset="1" stop-color="#3d46bd"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full bleed: Discord crops avatars to a circle, so nothing meaningful sits
+       near the corners and the shield stays inside the inscribed circle. -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- The shield is the app's own brand mark, so the avatar and the header agree. -->
+  <path d="M256 52 L424 124 V266 c0 104 -68 188 -168 210 C156 454 88 370 88 266 V124 Z"
+        fill="url(#shield)"/>
+
+  <!-- Two rows, allowed and denied. Three read as texture once Discord scales this
+       to 32px in a member list; two survive. -->
+  <g>
+    <circle cx="181" cy="212" r="33" fill="#2dd4a7"/>
+    <rect x="228" y="188" width="148" height="48" rx="24" fill="#ffffff" opacity="0.95"/>
+
+    <circle cx="181" cy="322" r="33" fill="#ff6b81"/>
+    <rect x="228" y="298" width="106" height="48" rx="24" fill="#ffffff" opacity="0.95"/>
+  </g>
+</svg>

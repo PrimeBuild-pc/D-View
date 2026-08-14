@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1280px; height: 344px; overflow: hidden;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(900px 420px at 82% 12%, rgba(88,101,242,.22), transparent 62%),
+      linear-gradient(160deg, #16223c 0%, #0b1120 58%);
+    color: #eef2f9;
+    display: flex; align-items: center; gap: 52px; padding: 0 60px;
+    position: relative;
+  }
+  /* faint grid, so the dark field is not flat */
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(720px 400px at 20% 50%, #000 30%, transparent 78%);
+  }
+  .left { position: relative; width: 604px; flex: none; }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand h1 {
+    font-size: 62px; font-weight: 700; letter-spacing: -2.2px; line-height: 1;
+  }
+  .tag { margin-top: 20px; font-size: 21px; line-height: 1.45; color: #a9b5cc; max-width: 540px; }
+  .chips { margin-top: 26px; display: flex; gap: 8px; }
+  .chip {
+    font-size: 12.5px; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+    background: rgba(255,255,255,.055); color: #b9c4d9; border: 1px solid rgba(255,255,255,.09);
+  }
+
+  /* right: the thing the product actually does — the resolution chain */
+  .panel {
+    position: relative; flex: 1;
+    background: rgba(17,26,46,.9); border: 1px solid #24314f;
+    border-radius: 16px; padding: 20px 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+  }
+  .head { display: flex; align-items: center; gap: 9px; font-size: 15px; color: #c8d2e4; }
+  .head .hash { color: #6b7a96; font-weight: 600; }
+  .verdicts { margin-left: auto; display: flex; gap: 6px; }
+  .v { font-size: 11.5px; padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+  .v.deny { background: rgba(255,107,129,.16); color: #ff8fa1; }
+  .rule { display: flex; align-items: center; gap: 11px; margin-top: 13px; font-size: 13.5px; color: #93a1bb; }
+  .n { width: 19px; height: 19px; border-radius: 6px; background: rgba(255,255,255,.06);
+       display: flex; align-items: center; justify-content: center; font-size: 11px; color: #7d8caa; flex: none; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .ok { background: #2dd4a7; }
+  .no { background: #ff6b81; }
+  .rule.decisive {
+    background: rgba(88,101,242,.14); border: 1px solid rgba(88,101,242,.34);
+    margin-left: -10px; margin-right: -10px; padding: 8px 10px; border-radius: 10px; color: #dce4f2;
+  }
+  .badge { margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: .4px;
+           color: #aab2ff; background: rgba(88,101,242,.22); padding: 3px 9px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">
+      <svg width="66" height="66" viewBox="0 0 512 512">
+        <defs>
+          <linearGradient id="s" x1="0.15" y1="0" x2="0.85" y2="1">
+            <stop offset="0" stop-color="#8791ff"/><stop offset="0.55" stop-color="#5865f2"/><stop offset="1" stop-color="#3d46bd"/>
+          </linearGradient>
+        </defs>
+        <path d="M256 52 L424 124 V266 c0 104 -68 188 -168 210 C156 454 88 370 88 266 V124 Z" fill="url(#s)"/>
+        <circle cx="181" cy="212" r="33" fill="#2dd4a7"/>
+        <rect x="228" y="188" width="148" height="48" rx="24" fill="#fff" opacity=".95"/>
+        <circle cx="181" cy="322" r="33" fill="#ff6b81"/>
+        <rect x="228" y="298" width="106" height="48" rx="24" fill="#fff" opacity=".95"/>
+      </svg>
+      <h1>D-View</h1>
+    </div>
+    <p class="tag">See who can actually do what on your Discord server — and change it safely.</p>
+    <div class="chips">
+      <span class="chip">Self-hosted</span>
+      <span class="chip">Every permission</span>
+      <span class="chip">Member simulation</span>
+      <span class="chip">Rollback</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="head">
+      <span class="hash">#</span><span>annunci</span>
+      <span style="color:#5c6b88">·</span><span style="color:#8fa0bd">Moderatore</span>
+      <span class="verdicts"><span class="v deny">Cannot send messages</span></span>
+    </div>
+
+    <div class="rule"><span class="n">1</span><span class="dot ok"></span>Starting point: the @everyone role</div>
+    <div class="rule"><span class="n">2</span><span class="dot ok"></span>Added by the subject’s other roles</div>
+    <div class="rule decisive">
+      <span class="n">3</span><span class="dot no"></span>Denied by the @everyone overwrite on this channel
+      <span class="badge">DECISIVE</span>
+    </div>
+    <div class="rule"><span class="n">4</span><span class="dot no"></span>No role overwrite grants it back</div>
+  </div>
+</body>
+</html>
