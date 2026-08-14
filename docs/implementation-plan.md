@@ -1,62 +1,41 @@
-# Implementation Plan
+# Implementation status
 
-## Milestone 0 — Repository and docs
-- [x] Capture product requirements.
-- [x] Capture architecture.
-- [x] Capture permission-engine design.
-- [x] Capture JSON schema/import design.
-- [x] Capture security model.
-- [x] Track open questions.
+## Done
 
-## Milestone 1 — Local vertical slice
-- Initialize pnpm monorepo.
-- Add TypeScript strict config, ESLint, Prettier, Vitest.
-- Create `packages/shared` with branded IDs, permissions, and snapshot schemas.
-- Create `packages/permission-engine` with pure calculation and tests.
-- Create `packages/database` with Prisma schema.
-- Create `apps/bot` minimal discord.js shell.
-- Create `apps/web` Next.js dashboard with mock guild data.
-- Render role selector, channel tree, badges, detail panel, audit list, Presets placeholder, Changes placeholder.
-- Run test, typecheck, lint, and build checks.
+- Monorepo, strict TypeScript, ESLint, Prettier, Vitest.
+- Discord OAuth login with a signed httpOnly session cookie.
+- Read-only REST sync of guild, roles, channels and overwrites, in one
+  transaction, pruning entities deleted on Discord.
+- Bitfield-native permission engine matching Discord's documented
+  resolution order, for both roles and real members.
+- Explorer: role and member selection, channel search and filters,
+  collapsible categories, all permissions grouped by scope, and an ordered
+  trace with the decisive step highlighted. Calculation runs in the
+  browser, so selection is instant.
+- Role-by-channel matrix with clickable cells.
+- Single-member lookup (no privileged intent) and optional bulk member
+  sync (needs Server Members intent).
+- Ten audit rules, severity-ordered and filterable, each linking to the
+  place that produced it.
+- Snapshot history with comparison between any two snapshots.
+- Snapshot export and import, validated and diffed into a change plan.
+- Permission editing in the UI, producing masked-intent change plans that
+  the server rebuilds and re-risk-assesses.
+- Apply to Discord behind `ENABLE_DISCORD_WRITES`, with live re-validation,
+  rate-limit handling, audit-log attribution, per-operation results and a
+  verification pass for uncertain writes.
+- Rollback as a generated plan restoring only the touched bits.
+- Seven UI languages with English as the type-checked source.
+- `/setup` diagnostics with per-check remediation and a bot invite link.
 
-## Milestone 2 — Real Discord read-only integration
-- [x] Add Discord OAuth in web.
-- [x] Add signed cookie session storage.
-- [x] Add guild selector from Discord user guild list.
-- [x] Add one-shot bot guild sync job.
-- [x] Normalize Discord roles/channels/overwrites into snapshot JSON.
-- [x] Store snapshots in PostgreSQL.
-- [x] Gate read access by owner/Administrator.
-- [x] Add audit rule runner persistence.
-- [ ] Render full synced permission tree, not only snapshot summary.
-- [x] Add refresh/sync trigger UI with status.
+## Not done
 
-## Milestone 3 — Snapshot export/import planning
-- [x] Export current snapshot JSON.
-- [x] Import candidate JSON with Zod validation.
-- [x] Verify guildId and role/channel existence.
-- [x] Compute diff preview into change-plan-like operations.
-- [x] Add warnings and impact summary.
-- [x] Add UI to include/exclude operations.
-
-## Milestone 4 — Safe write operations
-- [x] Persist selected import diff operations as `PermissionChangePlan` drafts.
-- [x] Add plan detail page with before/after and warnings.
-- [x] Add recent plan list in Changes / History.
-- [x] Add write authorization through owner/Administrator (Permission Manager role remains future config).
-- [x] Add reinforced confirmation for all applies, including `@everyone` and Administrator risk.
-- [x] Create pre-apply backup snapshots.
-- [x] Apply role permission and role overwrite batches through Discord REST when `ENABLE_DISCORD_WRITES=true`.
-- [x] Store execution report and partial failure details.
-
-## Milestone 5 — Rollback and presets
-- Generate rollback plan from backup snapshots.
-- Add preset template authoring and scoped application.
-- Add preset preview/diff before apply.
-
-## Milestone 6 — Scale and UX
-- Virtualized matrix roles x channels.
-- Advanced permission mode.
-- More audit rules.
-- Search/filtering.
-- Playwright e2e coverage.
+- **Presets.** Named permission templates applied to a scope. Nothing has
+  been built; the change-plan pipeline would carry them unchanged.
+- **Playwright end-to-end coverage.** The engine has unit tests; the UI
+  has none.
+- **Scheduled or continuous sync.** Sync is manual and on demand.
+- **Permission Manager role.** Write access is owner or Administrator.
+  A configurable per-guild role remains open (see open-questions.md).
+- **Per-bucket rate limiting.** A flat 250 ms spacing plus 429 retry is
+  enough for plans of a few dozen operations.

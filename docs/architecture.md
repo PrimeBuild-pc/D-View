@@ -1,65 +1,79 @@
 # Architecture
 
 ## Stack
-- TypeScript end-to-end, strict mode.
+- TypeScript end-to-end, strict mode, `exactOptionalPropertyTypes`.
 - Monorepo with pnpm workspaces.
-- `apps/web`: Next.js App Router dashboard.
-- `apps/bot`: discord.js bot entrypoint.
-- `packages/shared`: shared IDs, permission names, snapshot schemas.
-- `packages/permission-engine`: pure permission calculation and audit helpers.
-- `packages/database`: Prisma schema/client for PostgreSQL.
+- `apps/web`: Next.js App Router dashboard, API routes, and all Discord REST calls.
+- `packages/shared`: snapshot types, zod schemas, Discord permission bits, masked-intent helpers.
+- `packages/permission-engine`: pure permission calculation, audit rules, and diffing.
+- `packages/database`: Prisma schema and client for PostgreSQL.
 
-`packages/ui` is intentionally skipped for the first slice. Local Tailwind components are enough; extract later when duplication appears.
+### There is no `apps/bot`
+
+Earlier drafts of this document described a discord.js bot owning Gateway
+integration and syncing. It was never built, and it is not going to be:
+D-View reads on demand over REST and has no reason to hold a persistent
+Gateway connection. A separate always-on process would add deployment
+surface and a second place for Discord credentials to live, in exchange
+for nothing this product needs.
+
+All Discord traffic goes through one client, `apps/web/src/lib/discord.ts`,
+which owns rate-limit handling, retry policy and audit-log attribution.
+
+### UI components
+
+Local components live in `apps/web/src/components`. A `packages/ui` was
+deferred "until duplication appears"; duplication appeared and was
+extracted, but into the app rather than a package, because there is
+exactly one consumer.
 
 ## Component boundaries
 
 ### Web app
-Owns UI, dashboard routing, mock vertical slice, future Discord OAuth callbacks, and API routes. It must not contain raw permission-calculation logic beyond calling the engine.
-
-### Bot app
-Owns Discord Gateway/API integration, guild syncing, rate-limit aware reads, and future batch application. First slice only validates configuration and starts cleanly.
+Owns UI, routing, OAuth, API routes, and Discord REST. It must not contain
+permission-calculation logic beyond calling the engine.
 
 ### Shared package
-Owns stable domain types and Zod schemas used by web, bot, database import/export, and tests.
+Owns domain types, zod schemas, the Discord permission bit table, and the
+masked-intent primitives (`applyMask`, `assertOnlyTouched`) that every
+write goes through.
 
 ### Permission engine
-Pure functions only. No Discord API, database, filesystem, or network. Inputs are normalized snapshots; outputs include effective permissions plus explanation traces.
+Pure functions only. No Discord API, database, filesystem, or network.
+This is a hard constraint rather than a stylistic one: it is what allows
+the identical code to run on the server and in the browser, which is what
+makes the Explorer resolve a selection without a round trip.
+
+Inputs are normalised snapshots; outputs are bitfields plus ordered
+explanation steps. The engine emits **codes**, never prose — otherwise the
+two most content-heavy panels in the product could not be translated.
 
 ### Database package
-Owns persistence schema for cached Discord entities, snapshots, change plans, executions, audit findings, dashboard authorization, and preset templates.
+Owns the persistence schema for cached Discord entities, snapshots, change
+plans, executions and per-operation results.
 
-## Main flows
+## Key decisions
 
-### Future OAuth dashboard flow
-1. User signs in with Discord OAuth.
-2. App fetches guilds visible to user.
-3. App filters guilds where user is owner or has Administrator for read access.
-4. Write access requires owner, Administrator, or configured Permission Manager role.
-5. Web reads cached snapshot and renders through permission engine.
-
-### Future Discord sync flow
-1. Bot reads guild roles/channels/overwrites.
-2. Bot normalizes Discord API objects into shared snapshot shape.
-3. Snapshot is stored with schema version.
-4. Audit rules run and persist findings.
-
-### Future change flow
-1. User/import/preset creates a `PermissionChangePlan`.
-2. Server validates schema, guild, role/channel existence, bot permissions.
-3. Engine computes diff and impact warnings.
-4. User selects operations and confirms batch.
-5. Bot applies idempotent operations with rate-limit handling.
-6. Execution report and backup snapshot are stored.
-7. Rollback uses the previous snapshot to generate a new plan, not direct blind restore.
-
-## Technical decisions
-- Prisma over Drizzle for fast schema readability and common PostgreSQL workflow.
-- Zod for import validation and typed parsing.
-- Vitest for package unit tests.
-- Tailwind without shadcn in slice one to avoid generated boilerplate.
-- React tree/panels as primary UI. Graph libraries are deferred.
+- **Prisma over Drizzle**, for schema ergonomics and migration tooling.
+- **`prisma db push` rather than migrations**, because every installation
+  owns its own database and starts from an empty one.
+- **Zod for validation** on every externally-supplied payload.
+- **Vitest** for unit tests, concentrated in the permission engine.
+- **Tailwind v4 with `@theme` tokens, no component library.** Generated
+  component boilerplate would outweigh what this app actually uses.
+- **No `discord-api-types` dependency.** The permission bit table is
+  display-only — writes use masked intents, so an incomplete table cannot
+  cause data loss — and a dozen named constants do not justify a
+  dependency on the write path.
 
 ## Assumptions
-- IDs are strings branded by TypeScript; runtime still validates with Zod string schemas.
-- Cached snapshots are source-of-truth for UI; live Discord reads happen through explicit sync.
-- Channel-level overwrites override inherited category explanations when present.
+
+- Permissions are stored and transported as **decimal bitfield strings**,
+  Discord's own wire format. Never as lists of names: a name list cannot
+  represent a permission Discord adds later, and converting through one
+  silently drops whatever it does not recognise.
+- Cached snapshots are the source of truth for the UI. Live Discord reads
+  happen on explicit sync, and immediately before each write.
+- Category overwrites are **not** an inheritance layer. Discord's
+  `compute_overwrites` never reads `parent_id`; syncing copies overwrites
+  onto the child at edit time. Sync state is reported as an annotation.

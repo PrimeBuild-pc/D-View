@@ -1,250 +1,149 @@
 <div align="center">
   <h1>D-View</h1>
-  <p><strong>Discord permission visibility dashboard for safer server administration.</strong></p>
+  <p><strong>See who can actually do what on your Discord server — and change it safely.</strong></p>
   <p>
     <a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
     <a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
-    <a href="https://github.com/PrimeBuild-pc/D-View/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=for-the-badge&logo=github" /></a>
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
     <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs" />
-    <img alt="pnpm" src="https://img.shields.io/badge/pnpm-11.9-F69220?style=for-the-badge&logo=pnpm&logoColor=white" />
-  </p>
-  <p>
-    <a href="#features">Features</a> ·
-    <a href="#quick-start">Quick Start</a> ·
-    <a href="#workspace">Workspace</a> ·
-    <a href="#safety-model">Safety Model</a>
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" />
   </p>
 </div>
 
-<hr />
+---
 
-<section id="overview">
-  <h2>Overview</h2>
-  <p>
-    <strong>D-View</strong> is a local-first dashboard that reads Discord guild permission data,
-    stores snapshots, explains effective role/channel permissions, and prepares safe reviewable
-    change plans before any Discord mutation is allowed.
-  </p>
-  <p>
-    The app is intentionally conservative: read-only sync is available now, while write execution
-    is gated behind explicit configuration and confirmation.
-  </p>
-</section>
+## What it is
 
-<section id="features">
-  <h2>Features</h2>
-  <ul>
-    <li>Discord OAuth login with signed <code>httpOnly</code> session cookie.</li>
-    <li>Guild filtering for owner or Administrator access.</li>
-    <li>Read-only Discord REST sync for guild roles, channels, and permission overwrites.</li>
-    <li>PostgreSQL persistence for guild entities, snapshots, audit findings, and change plans.</li>
-    <li>Role-first permission dashboard with category/channel tree.</li>
-    <li>Effective permission explanations for <code>ViewChannel</code> and <code>SendMessages</code>.</li>
-    <li>Administrator bypass handling.</li>
-    <li>Category, channel, role, and <code>@everyone</code> overwrite analysis.</li>
-    <li>Audit findings for risky or unusual permission states.</li>
-    <li>Snapshot JSON export endpoint.</li>
-    <li>Import flow that diffs a candidate snapshot into a reviewable change plan.</li>
-    <li>Discord write execution is disabled by default and requires reinforced confirmation.</li>
-  </ul>
-</section>
+D-View is a **self-hosted** dashboard for Discord server owners and admins. You run your own copy, with your own bot — there is no hosted service and no third party ever sees your server's data.
 
-<section id="quick-start">
-  <h2>Quick Start</h2>
+It answers the questions Discord's own UI makes hard:
 
-  <h3>Prerequisites</h3>
-  <ul>
-    <li>Node.js recent LTS or newer</li>
-    <li>pnpm via Corepack</li>
-    <li>Docker for local PostgreSQL</li>
-    <li>A Discord application with OAuth2 configured</li>
-    <li>A Discord bot token for read-only guild sync</li>
-  </ul>
+- **Who can see this channel, and why?** Not just yes or no — the exact ordered chain of rules that produced the answer, with the decisive step highlighted.
+- **What can this specific person do?** Real resolution: the union of all their roles, owner and Administrator bypass, member-specific overwrites, timeout state.
+- **What is risky right now?** Ten audit rules covering dangerous `@everyone` permissions, channels nobody can reach, public channels inside private categories, conflicting overwrites, and more.
+- **What changed?** Every sync stores a snapshot. Compare any two and read the difference in plain language.
+- **Can I fix it without breaking something?** Edit permissions in the UI, review a readable diff, apply it to Discord behind a confirmation proportional to the risk, and roll it back if you were wrong.
 
-  <h3>Install</h3>
+### Safety
 
-  <pre><code>corepack enable pnpm
+Writing to Discord is **off by default**. When enabled, every change goes through a reviewable plan, and:
+
+- Operations are rebuilt server-side from the snapshot. Nothing the browser claims about what a change does — including how risky it is — is trusted.
+- A change carries a **mask** of exactly which permission bits it may alter. Everything else is copied from the live value, so a plan can never strip a permission it was not about.
+- Live state is re-read immediately before each write. If someone changed it in the meantime, that operation is skipped and reported rather than silently overwritten.
+- Applying continues past a failure and reports every operation as applied, skipped, failed or unknown. Anything unknown is verified afterwards by re-reading it.
+- A snapshot is taken before applying, and rollback generates a **new reviewable plan** restoring only the bits that were touched.
+- Changes appear in your Discord audit log attributed to the plan and the person who ran it.
+
+---
+
+## Quick start
+
+You will need [Node.js](https://nodejs.org) (recent LTS), [pnpm](https://pnpm.io) via Corepack, and [Docker](https://docs.docker.com/get-docker/) for PostgreSQL.
+
+### 1. Create a Discord application
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**.
+2. Under **OAuth2**, copy the **Client ID** and **Client Secret**.
+3. Still under **OAuth2**, add this redirect URL exactly:
+   ```
+   http://localhost:3000/api/auth/callback
+   ```
+4. Under **Bot**, click **Reset Token** and copy the token. Treat it like a password.
+5. *(Optional)* Under **Bot → Privileged Gateway Intents**, enable **Server Members Intent**. This is only needed to search the full member list; looking up one member by ID works without it.
+
+### 2. Install and configure
+
+```bash
+git clone https://github.com/PrimeBuild-pc/D-View.git
+cd D-View
+corepack enable pnpm
 pnpm install
-cp .env.example .env</code></pre>
+cp .env.example .env
+```
 
-  <h3>Configure environment</h3>
-  <p>Fill these values in <code>.env</code>:</p>
+Fill in `.env`:
 
-  <pre><code>DATABASE_URL=postgresql://postgres:postgres@localhost:5432/discord_permission_dashboard
-AUTH_SECRET=replace-with-a-long-random-secret
-DISCORD_CLIENT_ID=your-discord-client-id
-DISCORD_CLIENT_SECRET=your-discord-client-secret
-DISCORD_BOT_TOKEN=your-discord-bot-token
-NEXTAUTH_URL=http://localhost:3000</code></pre>
+```bash
+# Generate with: openssl rand -base64 32
+AUTH_SECRET=
 
-  <p>Discord OAuth callback URL:</p>
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_BOT_TOKEN=
 
-  <pre><code>http://localhost:3000/api/auth/callback</code></pre>
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/discord_permission_dashboard
 
-  <h3>Database</h3>
+# Leave false until you actually intend to change permissions.
+ENABLE_DISCORD_WRITES=false
+```
 
-  <pre><code>docker compose up -d postgres
-pnpm --filter @dpd/database db:push</code></pre>
+### 3. Start the database and the app
 
-  <h3>Run</h3>
+```bash
+docker compose up -d
+pnpm --filter @dpd/database db:push
+pnpm dev
+```
 
-  <pre><code>pnpm dev</code></pre>
+Open <http://localhost:3000/setup>. Every prerequisite is checked there, and each failing check tells you how to fix it. The same page gives you an **invite link** for your bot with the right permissions.
 
-  <p>Open <a href="http://localhost:3000">http://localhost:3000</a>, log in, then open <code>/guilds</code>.</p>
-</section>
+### 4. Use it
 
-<section id="common-commands">
-  <h2>Common Commands</h2>
+1. Invite the bot to your server (link on `/setup`).
+2. Sign in with Discord at <http://localhost:3000>.
+3. Pick your server and press **Sync now** — this only reads.
+4. Open **Explorer**, pick a role, pick a channel.
 
-  <table>
-    <thead>
-      <tr>
-        <th>Command</th>
-        <th>Purpose</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>pnpm dev</code></td>
-        <td>Start the Next.js web app.</td>
-      </tr>
-      <tr>
-        <td><code>pnpm typecheck</code></td>
-        <td>Run TypeScript checks across the workspace.</td>
-      </tr>
-      <tr>
-        <td><code>pnpm test</code></td>
-        <td>Run Vitest tests.</td>
-      </tr>
-      <tr>
-        <td><code>pnpm lint</code></td>
-        <td>Run ESLint.</td>
-      </tr>
-      <tr>
-        <td><code>pnpm --filter @dpd/database db:push</code></td>
-        <td>Apply Prisma schema to the local database.</td>
-      </tr>
-      <tr>
-        <td><code>pnpm --filter @dpd/web build</code></td>
-        <td>Build the web app.</td>
-      </tr>
-    </tbody>
-  </table>
-</section>
+---
 
-<section id="workspace">
-  <h2>Workspace</h2>
+## Enabling writes
 
-  <pre><code>apps/web                  Next.js dashboard and API routes
-packages/shared           Shared types, branded IDs, permission bits, Zod schemas
-packages/permission-engine Pure permission calculation, diffing, and audit helpers
-packages/database         Prisma schema and Prisma client export
-docs/                     Product, architecture, security, and design notes</code></pre>
-</section>
+Only when you want to change permissions:
 
-<section id="app-flow">
-  <h2>App Flow</h2>
+1. Set `ENABLE_DISCORD_WRITES=true` in `.env` and restart.
+2. Make sure the bot's role sits **above** every role you intend to edit. Discord refuses otherwise, and a bot can only grant permissions it holds itself.
+3. Edit permissions in the Explorer, review the plan, and confirm by typing your server's name.
 
-  <ol>
-    <li>User logs in with Discord OAuth.</li>
-    <li>The app stores a signed session cookie containing readable guilds.</li>
-    <li>User selects a guild from <code>/guilds</code>.</li>
-    <li>User runs read-only sync.</li>
-    <li>The web API fetches Discord guild, role, and channel data through Discord REST.</li>
-    <li>A normalized permission snapshot is stored in PostgreSQL.</li>
-    <li>The dashboard loads the latest snapshot and explains effective permissions.</li>
-    <li>Optional JSON import compares a candidate snapshot and creates a reviewable plan.</li>
-  </ol>
-</section>
+Try it on a throwaway channel first. Never test on `@everyone`.
 
-<section id="routes">
-  <h2>Important Routes</h2>
+---
 
-  <table>
-    <thead>
-      <tr>
-        <th>Route</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>/guilds</code></td>
-        <td>Readable Discord guild list.</td>
-      </tr>
-      <tr>
-        <td><code>/guilds/[guildId]</code></td>
-        <td>Main synced permission dashboard.</td>
-      </tr>
-      <tr>
-        <td><code>/guilds/[guildId]/matrix</code></td>
-        <td>Compact roles × channels matrix.</td>
-      </tr>
-      <tr>
-        <td><code>/guilds/[guildId]/import</code></td>
-        <td>Import JSON snapshot and generate a change plan.</td>
-      </tr>
-      <tr>
-        <td><code>/changes</code></td>
-        <td>Recent change plans.</td>
-      </tr>
-      <tr>
-        <td><code>/api/guilds/[guildId]/sync</code></td>
-        <td>Read-only Discord REST sync.</td>
-      </tr>
-      <tr>
-        <td><code>/api/guilds/[guildId]/snapshot</code></td>
-        <td>Download latest stored snapshot as JSON.</td>
-      </tr>
-    </tbody>
-  </table>
-</section>
+## Workspace
 
-<section id="safety-model">
-  <h2>Safety Model</h2>
+```
+apps/web                      Next.js app: UI, API routes, Discord REST calls
+packages/permission-engine    Pure permission resolution. No network, no database.
+packages/shared               Snapshot types, zod schemas, Discord permission bits
+packages/database             Prisma client and schema
+```
 
-  <ul>
-    <li>Read-only sync is the default operational mode.</li>
-    <li>Discord writes require <code>ENABLE_DISCORD_WRITES=true</code>.</li>
-    <li>Apply flow requires typing <code>APPLY</code>.</li>
-    <li>A pre-apply snapshot is saved before execution.</li>
-    <li>Risky changes such as <code>@everyone</code> or Administrator edits are flagged.</li>
-    <li>Secrets belong in local <code>.env</code> files only; they are gitignored.</li>
-  </ul>
-</section>
+The permission engine is deliberately dependency-free and side-effect-free, which is what lets the exact same code run on the server and in your browser. That is why selecting a role or channel in the Explorer is instant rather than a page load.
 
-<section id="checks">
-  <h2>Verified Checks</h2>
+`packages/permission-engine` carries the tests that matter: bitfield round-trips, Discord's overwrite ordering, owner and Administrator bypass, member resolution, and the guard that refuses any write reaching outside its mask.
 
-  <pre><code>pnpm typecheck
-pnpm test</code></pre>
-</section>
+```bash
+pnpm test        # unit tests
+pnpm typecheck   # strict TypeScript across the workspace
+pnpm lint
+pnpm build
+```
 
-<section id="status">
-  <h2>Status</h2>
+---
 
-  <p>Works now:</p>
-  <ul>
-    <li>OAuth login</li>
-    <li>Guild listing</li>
-    <li>Read-only sync</li>
-    <li>Snapshot storage and export</li>
-    <li>Permission explanation dashboard</li>
-    <li>Audit findings</li>
-    <li>Import-to-plan flow</li>
-  </ul>
+## Language
 
-  <p>Intentionally gated:</p>
-  <ul>
-    <li>Discord permission writes</li>
-    <li>Rollback automation</li>
-    <li>Background/continuous sync</li>
-  </ul>
-</section>
+The interface ships in English, Italian, German, French, Spanish, Chinese and Russian. Your choice is remembered in a cookie; first-time visitors get their browser's language when it is one of the seven.
 
-<hr />
+English is the source of truth for the dictionary and the other locales are type-checked against it, so a missing translation fails the build rather than leaving a blank spot.
 
-<div align="center">
-  <p><strong>D-View</strong> — understand Discord permissions before changing them.</p>
-</div>
+---
+
+## Notes and limits
+
+- **This is not a hosted service.** Each installation talks to Discord with its own credentials and stores data in its own database.
+- **Discord does not expose members' country or language.** The `locale` field only exists for the signed-in user, never for members read through a bot, so D-View makes no attempt to guess where your members are from.
+- **These endpoints have no ETag.** Live state is re-read immediately before each write to narrow the window, but a change made in the same instant can still be missed. D-View reports what it did rather than claiming the operation was atomic.
+- **Snapshots from before the bitfield migration cannot be upgraded.** They stored permission *names* against a table that had already dropped what it did not recognise. Re-sync instead.
+
+Security policy: [SECURITY.md](SECURITY.md). Licence: [MIT](LICENSE).

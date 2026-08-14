@@ -1,72 +1,93 @@
-# JSON Snapshot and Import Design
+# Snapshot format
 
-## Snapshot goals
-The snapshot must be readable by humans and external AI tools, while still validated before import.
+Snapshots are the export/import unit and the substrate for history and
+rollback. They must be readable by a human or an external tool, and
+validated before anything acts on them.
 
-## Top-level shape
+## Version 2.0.0
+
 ```json
 {
-  "schemaVersion": "1.0.0",
-  "exportedAt": "2026-07-01T00:00:00.000Z",
-  "guild": { "id": "...", "name": "...", "everyoneRoleId": "..." },
-  "roles": [],
-  "categories": [],
-  "channels": [],
-  "metadata": { "source": "discord-permission-dashboard" }
-}
-```
-
-## Role shape
-```json
-{
-  "id": "role-id",
-  "name": "Moderator",
-  "color": "#5865F2",
-  "position": 10,
-  "managed": false,
-  "permissions": ["ViewChannel", "ManageMessages"]
-}
-```
-
-## Channel/category shape
-```json
-{
-  "id": "channel-id",
-  "name": "announcements",
-  "type": "text",
-  "parentId": "category-id",
-  "overwrites": [
-    { "targetType": "role", "targetId": "role-id", "allow": ["ViewChannel"], "deny": ["SendMessages"] }
+  "schemaVersion": "2.0.0",
+  "exportedAt": "2026-08-14T10:33:21.004Z",
+  "guild": {
+    "id": "1206...",
+    "name": "My Server",
+    "ownerId": "884...",
+    "everyoneRoleId": "1206..."
+  },
+  "roles": [
+    {
+      "id": "1207...",
+      "name": "Moderator",
+      "color": "#5865f2",
+      "position": 10,
+      "managed": false,
+      "permissions": "8598323264"
+    }
   ],
-  "memberOverwriteMetadata": [
-    { "userId": "user-id", "allow": [], "deny": ["ViewChannel"], "readonly": true }
-  ]
+  "channels": [
+    {
+      "id": "1208...",
+      "name": "announcements",
+      "type": 0,
+      "parentId": "1209...",
+      "position": 3,
+      "overwrites": [
+        { "targetType": "role", "targetId": "1206...", "allow": "1024", "deny": "2048" }
+      ]
+    }
+  ],
+  "metadata": { "source": "discord-rest-sync" }
 }
 ```
+
+### Why bitfields, not names
+
+Version 1.0.0 stored permission *names*. That format cannot represent a
+permission Discord introduces later, and the table it was written against
+had already dropped everything it did not recognise — so a name-based
+export was lossy the moment it was written, and applying one stripped
+real permissions off live roles.
+
+`permissions`, `allow` and `deny` are therefore decimal strings validated
+by `/^\d+$/` and nothing more. An unknown future bit round-trips through
+export and import untouched.
+
+**1.0.0 snapshots are rejected, not upgraded.** Reconstructing bits from
+names would reintroduce exactly the loss that made them wrong. Re-sync.
+
+### Channels
+
+`type` is the raw Discord channel type number, so forum, stage, media,
+announcement and thread channels survive. An earlier mapping collapsed
+everything to three names and discarded the rest, which meant the audit
+reported those servers as clean because it could not see the channels.
+
+Categories are channels with `type: 4`. There is one `channels` array
+rather than separate `categories` and `channels`; `parentId` expresses
+the relationship.
 
 ## Import pipeline
-Imported JSON is never applied directly. Required pipeline:
-1. Validate schema version and Zod schema.
-2. Verify `guild.id` matches selected guild.
-3. Verify all role and channel IDs exist.
-4. Verify bot has required permissions and role hierarchy.
-5. Compute diff against current snapshot.
-6. Simulate impact and warnings.
-7. Create a change plan.
-8. Require manual approval.
-9. Create backup snapshot.
-10. Apply idempotent batch.
-11. Store execution report.
 
-## Change plan operations
-Initial operation kinds:
-- `set-role-permissions`
-- `set-role-channel-overwrite`
-- `delete-role-channel-overwrite`
+An imported file is never applied directly:
 
-Member overwrite operation kinds are intentionally absent in v1.
+1. Reject bodies over 8 MB.
+2. Parse JSON; report syntax errors as such.
+3. Reject a `schemaVersion` other than the current one, by name.
+4. Validate against the zod schema, reporting the first twenty issues with paths.
+5. Verify `guild.id` matches the selected guild.
+6. Diff against the stored snapshot, producing **masked intents** covering
+   only the bits that actually differ.
+7. Recompute warnings server-side from the engine.
+8. Present a readable diff with per-operation include/exclude.
+9. Create a change plan — the server rebuilds every operation; nothing the
+   client sent about what a change does, or how risky it is, is trusted.
+10. Require confirmation proportional to the risk.
+11. Snapshot before applying, apply, and store per-operation results.
 
-## Readability conventions
-- Use Discord permission names, not numeric bitfields, in exported JSON.
-- Include names alongside IDs for review, but IDs are authoritative.
-- Preserve unknown future metadata under a versioned `metadata` object only after validation rules allow it.
+## Conventions
+
+- IDs are authoritative; names travel alongside them for review only.
+- Bitfields are strings because JSON has no integer wide enough.
+- Unknown metadata is preserved under `metadata` after validation.
