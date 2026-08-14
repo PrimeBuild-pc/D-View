@@ -260,8 +260,6 @@ const de: Dict = {
     applying: 'Wird angewendet…',
     rollback: 'Rollback-Plan erstellen',
     rollbackHelp: 'Erstellt einen neuen Plan, der nur die von diesem geänderten Bits wiederherstellt. Er durchläuft dieselbe Prüfung und Bestätigung.',
-    writesDisabled: 'Schreiben nach Discord ist deaktiviert',
-    writesDisabledHelp: 'Setze ENABLE_DISCORD_WRITES=true in deiner .env und starte neu, damit D-View Pläne anwenden darf.',
     confirmTitle: 'Dieser Plan enthält riskante Änderungen',
     confirmTyping: 'Tippe den Servernamen {name}, um zu bestätigen',
     confirmMismatch: 'Das stimmt nicht mit dem Servernamen überein.',
@@ -289,6 +287,21 @@ const de: Dict = {
     'bot-self-lockout': 'Dies entzieht dem Bot seine eigene Rollen-verwalten-Berechtigung, wodurch spätere Operationen fehlschlagen.',
   },
 
+  writes: {
+    title: 'Schreiben nach Discord',
+    off: 'Aus',
+    on: 'An',
+    offHelp: 'D-View kann deinen Server lesen, aber nichts ändern. Entsperre das Schreiben, wenn du einen Plan anwenden willst.',
+    onHelp: 'D-View darf geprüfte Pläne auf Discord anwenden, bis dieses Fenster schließt.',
+    unlock: 'Für {minutes} Minuten entsperren',
+    lock: 'Jetzt wieder sperren',
+    expires: 'Schließt {when}',
+    opened: 'Schreiben entsperrt. Es schließt von selbst — du musst nicht daran denken.',
+    closed: 'Schreiben wieder gesperrt.',
+    lockedTitle: 'Schreiben ist per Konfiguration gesperrt',
+    lockedHelp: 'DISCORD_WRITES_LOCKED=true ist gesetzt, daher kann hier nicht entsperrt werden. Entferne es aus der .env und starte neu.',
+    windowNote: 'Das Fenster schließt von selbst, versehentliches Offenlassen ist also nicht dauerhaft.',
+  },
   importPage: {
     title: 'Snapshot importieren',
     help: 'Exportiere einen Snapshot, bearbeite ihn und lade ihn hier hoch. Es wird nichts angewendet, bevor du einen Plan geprüft und bestätigt hast.',
@@ -322,9 +335,9 @@ const de: Dict = {
     membersIntent: 'Server-Members-Intent',
     membersIntentHelp: 'Nur für die Mitgliedersuche nötig. Aktiviere ihn unter Bot → Privileged Gateway Intents.',
     writes: 'Discord-Schreibzugriffe',
-    writesHelp: 'Standardmäßig aus. Setze ENABLE_DISCORD_WRITES=true nur, wenn du Änderungen anwenden willst.',
-    writesEnabled: 'Aktiviert',
-    writesDisabled: 'Deaktiviert (nur lesen)',
+    writesHelp: 'Werden auf der Seite des jeweiligen Servers für ein begrenztes Fenster entsperrt. Setze DISCORD_WRITES_LOCKED=true in der .env, um sie ganz zu verbieten.',
+    writesUnlockable: 'Über das Dashboard entsperrbar',
+    writesLocked: 'Per Konfiguration gesperrt',
   },
 
   time: {

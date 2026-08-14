@@ -4,15 +4,15 @@
 
 <br />
 
-[![Stars](https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=for-the-badge&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/stargazers)
-[![Issues](https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=for-the-badge&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/issues)
-[![Last commit](https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=for-the-badge&logo=git&logoColor=white&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/commits/main)
-[![Licence](https://img.shields.io/badge/licence-MIT-2dd4a7?style=for-the-badge&labelColor=0b1120)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/stargazers)
+[![Issues](https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/issues)
+[![Last commit](https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=flat-square&logo=git&logoColor=white&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/commits/main)
+[![Licence](https://img.shields.io/badge/licence-MIT-2dd4a7?style=flat-square&labelColor=0b1120)](LICENSE)
 
-![Self-hosted](https://img.shields.io/badge/self--hosted-no%20cloud%2C%20no%20tracking-2dd4a7?style=for-the-badge&labelColor=0b1120)
-![Permissions](https://img.shields.io/badge/permissions-all%2053-5865F2?style=for-the-badge&labelColor=0b1120)
-![Languages](https://img.shields.io/badge/UI-7%20languages-5865F2?style=for-the-badge&labelColor=0b1120)
-![Writes](https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=for-the-badge&labelColor=0b1120)
+![Self-hosted](https://img.shields.io/badge/self--hosted-no%20cloud%2C%20no%20tracking-2dd4a7?style=flat-square&labelColor=0b1120)
+![Permissions](https://img.shields.io/badge/permissions-all%2053-5865F2?style=flat-square&labelColor=0b1120)
+![Languages](https://img.shields.io/badge/UI-7%20languages-5865F2?style=flat-square&labelColor=0b1120)
+![Writes](https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=flat-square&labelColor=0b1120)
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0b1120)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs&labelColor=0b1120)
@@ -109,7 +109,6 @@ DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
 DISCORD_BOT_TOKEN=
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/discord_permission_dashboard
-ENABLE_DISCORD_WRITES=false
 ```
 
 ### 3 · Run
@@ -150,14 +149,18 @@ through a reviewable plan:
 | **Audit-log attribution** | Changes appear in your Discord audit log, tied to the plan and the person who ran it. |
 | **Proportional confirmation** | Risky changes require typing your server's name, so you have to look at what you are pointing at. |
 
-To actually change something:
+### Unlocking writes
 
-```bash
-ENABLE_DISCORD_WRITES=true   # in .env, then restart
-```
+Writing is unlocked **from the dashboard**, on the server's own page — no file to
+edit, no restart. It is granted as a **60-minute window that closes itself**,
+because a flag that is simply "on" stays on silently and indefinitely, which is
+the failure mode worth designing against.
 
 The bot's role must sit **above** every role you intend to edit — Discord refuses
 otherwise, and a bot can only grant permissions it holds itself.
+
+If you want writing to be impossible regardless of what anyone clicks, set
+`DISCORD_WRITES_LOCKED=true` in `.env`. The toggle is then disabled and says so.
 
 > [!WARNING]
 > Test on a throwaway channel first. Never test on `@everyone`.

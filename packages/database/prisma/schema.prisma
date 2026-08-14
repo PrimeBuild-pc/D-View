@@ -12,6 +12,10 @@ model DiscordGuild {
   name            String
   ownerId         String   @default("")
   membersSyncedAt DateTime?
+  /// Writing to Discord is unlocked for a window rather than by a boolean.
+  /// A flag that is simply "on" stays on silently forever; a window closes
+  /// itself, so forgetting to turn it off is not a lasting hazard.
+  writesEnabledUntil DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   roles           DiscordRole[]

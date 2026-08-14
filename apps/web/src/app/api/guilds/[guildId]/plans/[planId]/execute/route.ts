@@ -18,6 +18,7 @@ import {
 } from '@/lib/discord';
 import { canWriteGuild, getSession } from '@/lib/session';
 import { deserialiseOperation } from '@/lib/plans';
+import { writeWindow } from '@/lib/writes';
 
 export const maxDuration = 300;
 
@@ -80,7 +81,9 @@ export async function POST(
   if ((form.get('confirm') as string | null)?.trim() !== plan.guild.name) {
     return redirect(request, guildId, planId, 'confirm');
   }
-  if (process.env.ENABLE_DISCORD_WRITES !== 'true') return redirect(request, guildId, planId, 'disabled');
+  // Checked here, not just in the UI: the window may have closed between
+  // opening the plan page and pressing apply.
+  if (!(await writeWindow(guildId)).enabled) return redirect(request, guildId, planId, 'disabled');
   if (!process.env.DISCORD_BOT_TOKEN) return redirect(request, guildId, planId, 'missing-token');
 
   // Compare-and-swap: the row count IS the guard. A read-then-write check races

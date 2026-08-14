@@ -260,8 +260,6 @@ const fr: Dict = {
     applying: 'Application…',
     rollback: 'Créer un plan d’annulation',
     rollbackHelp: 'Construit un nouveau plan qui restaure uniquement les bits modifiés par celui-ci. Il passe par la même vérification et la même confirmation.',
-    writesDisabled: 'L’écriture vers Discord est désactivée',
-    writesDisabledHelp: 'Définissez ENABLE_DISCORD_WRITES=true dans votre .env et redémarrez pour permettre à D-View d’appliquer des plans.',
     confirmTitle: 'Ce plan contient des modifications risquées',
     confirmTyping: 'Tapez le nom du serveur {name} pour confirmer',
     confirmMismatch: 'Cela ne correspond pas au nom du serveur.',
@@ -289,6 +287,21 @@ const fr: Dict = {
     'bot-self-lockout': 'Ceci retire au bot sa propre permission Gérer les rôles, ce qui ferait échouer les opérations suivantes.',
   },
 
+  writes: {
+    title: 'Écriture vers Discord',
+    off: 'Désactivée',
+    on: 'Activée',
+    offHelp: 'D-View peut lire votre serveur mais ne peut rien modifier. Déverrouillez l’écriture quand vous êtes prêt à appliquer un plan.',
+    onHelp: 'D-View peut appliquer les plans vérifiés sur Discord jusqu’à la fermeture de cette fenêtre.',
+    unlock: 'Déverrouiller {minutes} minutes',
+    lock: 'Reverrouiller maintenant',
+    expires: 'Se ferme {when}',
+    opened: 'Écriture déverrouillée. Elle se referme seule — inutile d’y penser.',
+    closed: 'Écriture reverrouillée.',
+    lockedTitle: 'L’écriture est verrouillée par la configuration',
+    lockedHelp: 'DISCORD_WRITES_LOCKED=true est défini, le déverrouillage est donc impossible ici. Retirez-le du .env et redémarrez.',
+    windowNote: 'La fenêtre se referme seule : la laisser ouverte par inadvertance n’est pas définitif.',
+  },
   importPage: {
     title: 'Importer un instantané',
     help: 'Exportez un instantané, modifiez-le, puis téléversez-le ici. Rien n’est appliqué avant que vous n’ayez vérifié et confirmé un plan.',
@@ -322,9 +335,9 @@ const fr: Dict = {
     membersIntent: 'Intent Server Members',
     membersIntentHelp: 'Nécessaire uniquement pour la recherche de membres. Activez-le sous Bot → Privileged Gateway Intents.',
     writes: 'Écritures Discord',
-    writesHelp: 'Désactivées par défaut. Définissez ENABLE_DISCORD_WRITES=true seulement quand vous comptez appliquer des modifications.',
-    writesEnabled: 'Activées',
-    writesDisabled: 'Désactivées (lecture seule)',
+    writesHelp: 'Se déverrouillent depuis la page de chaque serveur, pour une fenêtre limitée. Définissez DISCORD_WRITES_LOCKED=true dans .env pour les interdire totalement.',
+    writesUnlockable: 'Déverrouillable depuis le tableau de bord',
+    writesLocked: 'Verrouillées par la configuration',
   },
 
   time: {

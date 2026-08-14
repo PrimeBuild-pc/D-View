@@ -260,8 +260,6 @@ const it: Dict = {
     applying: 'Applicazione…',
     rollback: 'Crea piano di rollback',
     rollbackHelp: 'Costruisce un nuovo piano che ripristina solo i bit modificati da questo. Passa dalla stessa revisione e conferma.',
-    writesDisabled: 'La scrittura su Discord è disabilitata',
-    writesDisabledHelp: 'Imposta ENABLE_DISCORD_WRITES=true nel tuo .env e riavvia per permettere a D-View di applicare i piani.',
     confirmTitle: 'Questo piano contiene modifiche rischiose',
     confirmTyping: 'Digita il nome del server {name} per confermare',
     confirmMismatch: 'Non corrisponde al nome del server.',
@@ -289,6 +287,21 @@ const it: Dict = {
     'bot-self-lockout': 'Questa modifica toglie al bot il proprio permesso Gestisci ruoli, facendo fallire le operazioni successive.',
   },
 
+  writes: {
+    title: 'Scrittura su Discord',
+    off: 'Disattivata',
+    on: 'Attiva',
+    offHelp: 'D-View può leggere il tuo server ma non può modificare nulla. Sblocca la scrittura quando sei pronto ad applicare un piano.',
+    onHelp: 'D-View può applicare i piani revisionati su Discord finché questa finestra non si chiude.',
+    unlock: 'Sblocca per {minutes} minuti',
+    lock: 'Blocca subito',
+    expires: 'Si chiude {when}',
+    opened: 'Scrittura sbloccata. Si richiude da sola — non devi ricordartene.',
+    closed: 'Scrittura di nuovo bloccata.',
+    lockedTitle: 'La scrittura è bloccata dalla configurazione',
+    lockedHelp: 'È impostato DISCORD_WRITES_LOCKED=true, quindi non si può sbloccare da qui. Rimuovilo dal .env e riavvia per permetterlo.',
+    windowNote: 'La finestra si chiude da sola, quindi lasciarla aperta per distrazione non è definitivo.',
+  },
   importPage: {
     title: 'Importa uno snapshot',
     help: 'Esporta uno snapshot, modificalo, poi caricalo qui. Non viene applicato nulla finché non rivedi e confermi un piano.',
@@ -322,9 +335,9 @@ const it: Dict = {
     membersIntent: 'Intent Server Members',
     membersIntentHelp: 'Serve solo per la ricerca fra i membri. Attivalo sotto Bot → Privileged Gateway Intents.',
     writes: 'Scritture su Discord',
-    writesHelp: 'Disattivate di default. Imposta ENABLE_DISCORD_WRITES=true solo quando intendi applicare modifiche.',
-    writesEnabled: 'Attive',
-    writesDisabled: 'Disattivate (sola lettura)',
+    writesHelp: 'Si sbloccano dalla pagina di ogni server, per una finestra limitata. Imposta DISCORD_WRITES_LOCKED=true nel .env per vietarle del tutto.',
+    writesUnlockable: 'Sbloccabile dalla dashboard',
+    writesLocked: 'Bloccate da configurazione',
   },
 
   time: {

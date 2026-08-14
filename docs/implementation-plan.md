@@ -21,7 +21,8 @@
 - Snapshot export and import, validated and diffed into a change plan.
 - Permission editing in the UI, producing masked-intent change plans that
   the server rebuilds and re-risk-assesses.
-- Apply to Discord behind `ENABLE_DISCORD_WRITES`, with live re-validation,
+- Apply to Discord behind a self-closing write window unlocked from the
+  dashboard, with live re-validation,
   rate-limit handling, audit-log attribution, per-operation results and a
   verification pass for uncertain writes.
 - Rollback as a generated plan restoring only the touched bits.

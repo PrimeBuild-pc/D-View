@@ -6,6 +6,8 @@ import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { deserialiseOperation, loadSnapshot, type PlanWarning } from '@/lib/plans';
 import { canWriteGuild } from '@/lib/session';
+import { writeWindow } from '@/lib/writes';
+import { WriteToggle } from '@/components/write-toggle';
 import { Badge, Card, CardBody, LinkButton, Notice, SectionTitle } from '@/components/ui';
 import { OperationSummary } from '@/components/operation-summary';
 import { RelativeTime } from '@/components/relative-time';
@@ -40,7 +42,7 @@ export default async function PlanPage({
   const snapshot = load.status === 'ok' ? load.snapshot : null;
   const warnings = (plan.warnings as unknown as PlanWarning[]) ?? [];
   const critical = warnings.filter((warning) => warning.severity === 'critical');
-  const writesEnabled = process.env.ENABLE_DISCORD_WRITES === 'true';
+  const writes = await writeWindow(guildId);
   const canApply = plan.status === 'draft' && canWriteGuild(access.guild);
   const latestExecution = plan.executions[0];
 
@@ -106,10 +108,10 @@ export default async function PlanPage({
       {canApply ? (
         <Card className="border-critical/30">
           <CardBody className="space-y-3">
-            {!writesEnabled ? (
-              <Notice tone="warning" title={copy.changes.writesDisabled}>
-                {copy.changes.writesDisabledHelp}
-              </Notice>
+            {!writes.enabled ? (
+              /* Unlocking is offered right here, so applying a plan does not
+                 mean leaving the page to go and edit a file. */
+              <WriteToggle guildId={guildId} window={writes} copy={copy} lang={lang} />
             ) : (
               <ApplyForm
                 action={`/api/guilds/${guildId}/plans/${planId}/execute`}
@@ -177,7 +179,7 @@ function ExecuteNotice({ status, copy }: { status: string; copy: ReturnType<type
     applied: { tone: 'allow', text: copy.changes.statusApplied },
     partial: { tone: 'warning', text: copy.changes.partialWarning },
     failed: { tone: 'critical', text: copy.changes.statusFailed },
-    disabled: { tone: 'warning', text: copy.changes.writesDisabledHelp },
+    disabled: { tone: 'warning', text: copy.writes.offHelp },
     confirm: { tone: 'warning', text: copy.changes.confirmMismatch },
     unauthorized: { tone: 'critical', text: copy.auth.notAuthorized },
     'missing-token': { tone: 'warning', text: copy.sync.missingToken },

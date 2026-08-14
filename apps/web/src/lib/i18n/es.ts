@@ -260,8 +260,6 @@ const es: Dict = {
     applying: 'Aplicando…',
     rollback: 'Crear plan de reversión',
     rollbackHelp: 'Construye un plan nuevo que restaura solo los bits que este cambió. Pasa por la misma revisión y confirmación.',
-    writesDisabled: 'La escritura en Discord está desactivada',
-    writesDisabledHelp: 'Pon ENABLE_DISCORD_WRITES=true en tu .env y reinicia para permitir que D-View aplique planes.',
     confirmTitle: 'Este plan contiene cambios arriesgados',
     confirmTyping: 'Escribe el nombre del servidor {name} para confirmar',
     confirmMismatch: 'Eso no coincide con el nombre del servidor.',
@@ -289,6 +287,21 @@ const es: Dict = {
     'bot-self-lockout': 'Esto le quita al bot su propio permiso Gestionar roles, lo que haría fallar las operaciones siguientes.',
   },
 
+  writes: {
+    title: 'Escritura en Discord',
+    off: 'Desactivada',
+    on: 'Activada',
+    offHelp: 'D-View puede leer tu servidor pero no puede cambiar nada. Desbloquea la escritura cuando vayas a aplicar un plan.',
+    onHelp: 'D-View puede aplicar planes revisados en Discord hasta que se cierre esta ventana.',
+    unlock: 'Desbloquear {minutes} minutos',
+    lock: 'Bloquear ahora',
+    expires: 'Se cierra {when}',
+    opened: 'Escritura desbloqueada. Se cierra sola — no tienes que acordarte.',
+    closed: 'Escritura bloqueada de nuevo.',
+    lockedTitle: 'La escritura está bloqueada por configuración',
+    lockedHelp: 'Está puesto DISCORD_WRITES_LOCKED=true, así que no se puede desbloquear desde aquí. Quítalo del .env y reinicia.',
+    windowNote: 'La ventana se cierra sola, así que dejarla abierta por descuido no es permanente.',
+  },
   importPage: {
     title: 'Importar una instantánea',
     help: 'Exporta una instantánea, edítala y súbela aquí. No se aplica nada hasta que revises y confirmes un plan.',
@@ -322,9 +335,9 @@ const es: Dict = {
     membersIntent: 'Intent Server Members',
     membersIntentHelp: 'Solo necesario para la búsqueda de miembros. Actívalo en Bot → Privileged Gateway Intents.',
     writes: 'Escrituras en Discord',
-    writesHelp: 'Desactivadas por defecto. Pon ENABLE_DISCORD_WRITES=true solo cuando tengas intención de aplicar cambios.',
-    writesEnabled: 'Activadas',
-    writesDisabled: 'Desactivadas (solo lectura)',
+    writesHelp: 'Se desbloquean desde la página de cada servidor, por una ventana limitada. Pon DISCORD_WRITES_LOCKED=true en .env para prohibirlas por completo.',
+    writesUnlockable: 'Desbloqueable desde el panel',
+    writesLocked: 'Bloqueadas por configuración',
   },
 
   time: {

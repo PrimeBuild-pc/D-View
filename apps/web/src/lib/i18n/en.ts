@@ -267,8 +267,6 @@ const en = {
     applying: 'Applying…',
     rollback: 'Create rollback plan',
     rollbackHelp: 'Builds a new plan that restores only the bits this one changed. It goes through the same review and confirmation.',
-    writesDisabled: 'Writing to Discord is disabled',
-    writesDisabledHelp: 'Set ENABLE_DISCORD_WRITES=true in your .env and restart to allow D-View to apply plans.',
     confirmTitle: 'This plan contains risky changes',
     confirmTyping: 'Type the server name {name} to confirm',
     confirmMismatch: 'That does not match the server name.',
@@ -296,6 +294,21 @@ const en = {
     'bot-self-lockout': 'This removes the bot’s own Manage Roles permission, which would make later operations fail.',
   },
 
+  writes: {
+    title: 'Writing to Discord',
+    off: 'Off',
+    on: 'On',
+    offHelp: 'D-View can read your server but cannot change anything. Unlock writing when you are ready to apply a plan.',
+    onHelp: 'D-View may apply reviewed plans to Discord until this window closes.',
+    unlock: 'Unlock for {minutes} minutes',
+    lock: 'Lock again now',
+    expires: 'Closes {when}',
+    opened: 'Writing unlocked. It closes on its own — you do not have to remember.',
+    closed: 'Writing locked again.',
+    lockedTitle: 'Writing is locked by configuration',
+    lockedHelp: 'DISCORD_WRITES_LOCKED=true is set, so writing cannot be unlocked from here. Remove it from .env and restart to allow it.',
+    windowNote: 'The window closes by itself, so leaving it open by accident is not permanent.',
+  },
   importPage: {
     title: 'Import a snapshot',
     help: 'Export a snapshot, edit it, then upload it here. Nothing is applied until you review and confirm a plan.',
@@ -329,9 +342,9 @@ const en = {
     membersIntent: 'Server Members intent',
     membersIntentHelp: 'Only needed for member search. Enable it under Bot → Privileged Gateway Intents.',
     writes: 'Discord writes',
-    writesHelp: 'Off by default. Set ENABLE_DISCORD_WRITES=true only when you intend to apply changes.',
-    writesEnabled: 'Enabled',
-    writesDisabled: 'Disabled (read only)',
+    writesHelp: 'Unlocked from each server’s page, for a limited window. Set DISCORD_WRITES_LOCKED=true in .env to forbid it entirely.',
+    writesUnlockable: 'Unlockable from the dashboard',
+    writesLocked: 'Locked by configuration',
   },
 
   time: {

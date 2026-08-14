@@ -1,6 +1,7 @@
 import { prisma } from '@dpd/database';
 import { t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
+import { writesLocked } from '@/lib/writes';
 import { Badge, Card, CardBody, LinkButton, SectionTitle } from '@/components/ui';
 import { IconCheck, IconCross, IconDash } from '@/components/icons';
 
@@ -76,11 +77,12 @@ export default async function SetupPage() {
     help: copy.setup.membersIntentHelp,
   });
 
-  const writes = process.env.ENABLE_DISCORD_WRITES === 'true';
+  // Writing is unlocked per guild from the dashboard, for a window. All that is
+  // left to report here is whether configuration forbids it outright.
   checks.push({
     label: copy.setup.writes,
     level: 'optional',
-    detail: writes ? copy.setup.writesEnabled : copy.setup.writesDisabled,
+    detail: writesLocked() ? copy.setup.writesLocked : copy.setup.writesUnlockable,
     help: copy.setup.writesHelp,
   });
 

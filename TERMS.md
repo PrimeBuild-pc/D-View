@@ -27,8 +27,8 @@ a real Discord server. **You are responsible for the changes you apply.**
 The software is built to make that responsibility manageable rather than
 theoretical:
 
-- Writing to Discord is disabled unless you explicitly set
-  `ENABLE_DISCORD_WRITES=true`.
+- Writing to Discord is off until you explicitly unlock it, and the unlock is a
+  time-limited window that closes itself.
 - Every change is reviewed as a plan before anything is sent.
 - A change may only alter the permission bits it explicitly declares.
 - Live state is re-checked immediately before each write, and conflicting

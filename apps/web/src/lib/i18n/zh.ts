@@ -260,8 +260,6 @@ const zh: Dict = {
     applying: '应用中…',
     rollback: '创建回滚方案',
     rollbackHelp: '生成一份新方案，只还原本次修改过的位。它同样需要经过审阅和确认。',
-    writesDisabled: '写入 Discord 已被禁用',
-    writesDisabledHelp: '在 .env 中设置 ENABLE_DISCORD_WRITES=true 并重启，才能让 D-View 应用方案。',
     confirmTitle: '该方案包含有风险的修改',
     confirmTyping: '输入服务器名称 {name} 以确认',
     confirmMismatch: '与服务器名称不一致。',
@@ -289,6 +287,21 @@ const zh: Dict = {
     'bot-self-lockout': '这会移除机器人自身的「管理身份组」权限，导致后续操作失败。',
   },
 
+  writes: {
+    title: '写入 Discord',
+    off: '已关闭',
+    on: '已开启',
+    offHelp: 'D-View 可以读取你的服务器，但不能修改任何内容。准备应用方案时再解锁写入。',
+    onHelp: '在此时间窗口关闭之前，D-View 可以把已审阅的方案应用到 Discord。',
+    unlock: '解锁 {minutes} 分钟',
+    lock: '立即重新锁定',
+    expires: '{when}关闭',
+    opened: '写入已解锁。它会自动关闭，你不需要记着。',
+    closed: '写入已重新锁定。',
+    lockedTitle: '写入已被配置锁定',
+    lockedHelp: '已设置 DISCORD_WRITES_LOCKED=true，因此无法在此解锁。从 .env 中移除并重启即可允许。',
+    windowNote: '时间窗口会自动关闭，所以忘记关掉也不是永久的。',
+  },
   importPage: {
     title: '导入快照',
     help: '导出一份快照，编辑后在此上传。在你审阅并确认方案之前，不会应用任何内容。',
@@ -322,9 +335,9 @@ const zh: Dict = {
     membersIntent: 'Server Members intent',
     membersIntentHelp: '仅成员搜索需要。在 Bot → Privileged Gateway Intents 下启用。',
     writes: 'Discord 写入',
-    writesHelp: '默认关闭。只有当你确实打算应用修改时，才设置 ENABLE_DISCORD_WRITES=true。',
-    writesEnabled: '已启用',
-    writesDisabled: '已禁用（只读）',
+    writesHelp: '在各服务器的页面上按时间窗口解锁。在 .env 中设置 DISCORD_WRITES_LOCKED=true 可完全禁止。',
+    writesUnlockable: '可从面板解锁',
+    writesLocked: '已被配置锁定',
   },
 
   time: {
