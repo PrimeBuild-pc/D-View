@@ -1,15 +1,36 @@
 import { prisma } from '@dpd/database';
 import Link from 'next/link';
 import { getLang, t } from '@/lib/i18n';
+import { canReadGuild, getSession } from '@/lib/session';
 
 const steps = ['Create plan', 'Validate diff', 'Select operations', 'Reinforced confirmation if risky', 'Batch apply', 'Report', 'Rollback plan from backup'];
 
 export const dynamic = 'force-dynamic';
 
 export default async function ChangesPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
-  const lang = getLang((await searchParams).lang);
+  const [session, params] = await Promise.all([getSession(), searchParams]);
+  const lang = getLang(params.lang);
   const copy = t(lang);
-  const plans = await prisma.permissionChangePlan.findMany({ orderBy: { createdAt: 'desc' }, take: 20, include: { operations: true, guild: true } });
+
+  if (!session) {
+    return (
+      <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">
+        <h1 className="text-2xl font-semibold text-white">{copy.loginRequired}</h1>
+        <p className="mt-2 text-slate-400">{copy.loginHelp}</p>
+        <a className="mt-4 inline-block rounded bg-indigo-600 px-4 py-2 text-white" href="/api/auth/login">{copy.login}</a>
+      </div>
+    );
+  }
+
+  const readableGuildIds = session.guilds.filter(canReadGuild).map((guild) => guild.id);
+  const plans = readableGuildIds.length
+    ? await prisma.permissionChangePlan.findMany({
+        where: { guildId: { in: readableGuildIds } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: { operations: true, guild: true },
+      })
+    : [];
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-6">

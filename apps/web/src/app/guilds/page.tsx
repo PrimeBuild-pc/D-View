@@ -29,7 +29,9 @@ export default async function GuildsPage({ searchParams }: { searchParams: Promi
           <Link href="?lang=en" className={lang === 'en' ? 'text-white' : 'text-slate-400'}>EN</Link>
           <Link href="?lang=it" className={lang === 'it' ? 'text-white' : 'text-slate-400'}>IT</Link>
           <Link href="?lang=zh" className={lang === 'zh' ? 'text-white' : 'text-slate-400'}>中文</Link>
-          <Link href="/api/auth/logout" className="text-slate-300">{copy.logout}</Link>
+          <form action="/api/auth/logout" method="post" className="contents">
+            <button type="submit" className="border-0 bg-transparent p-0 text-slate-300 cursor-pointer">{copy.logout}</button>
+          </form>
         </div>
       </div>
       {syncMessage ? <p className="mt-4 rounded border border-amber-800 bg-amber-950 p-3 text-sm text-amber-200">{syncMessage}</p> : null}

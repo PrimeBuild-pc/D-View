@@ -17,12 +17,33 @@ export interface DiscordUserGuild {
 
 const cookieName = 'dpd_session';
 
+// Session cookie lifetime and server-side createdAt expiry window (7 days). Single
+// source of truth so the cookie maxAge and the payload validation cannot drift.
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
 function secret(): string {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-insecure-change-me';
+  const value = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!value || value.length < 32) {
+    throw new Error(
+      'AUTH_SECRET is missing or too short. Generate one with `openssl rand -base64 32` and set AUTH_SECRET in your .env file (minimum 32 characters).'
+    );
+  }
+  return value;
 }
 
 function sign(payload: string): string {
   return crypto.createHmac('sha256', secret()).update(payload).digest('base64url');
+}
+
+function signaturesMatch(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  try {
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
 }
 
 export function encodeSession(session: DiscordSession): string {
@@ -33,9 +54,13 @@ export function encodeSession(session: DiscordSession): string {
 export function decodeSession(value?: string): DiscordSession | null {
   if (!value) return null;
   const [payload, signature] = value.split('.');
-  if (!payload || !signature || sign(payload) !== signature) return null;
+  if (!payload || !signature || !signaturesMatch(sign(payload), signature)) return null;
   try {
-    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as DiscordSession;
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as DiscordSession;
+    if (typeof session.createdAt !== 'number' || Date.now() - session.createdAt > SESSION_MAX_AGE_SECONDS * 1000) {
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -51,7 +76,7 @@ export async function setSession(session: DiscordSession): Promise<void> {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 }
 
