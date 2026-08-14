@@ -4,6 +4,8 @@
 
 <br />
 
+[![CI](https://img.shields.io/github/actions/workflow/status/PrimeBuild-pc/D-View/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=2dd4a7&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/releases/latest)
 [![Stars](https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/stargazers)
 [![Issues](https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/issues)
 [![Last commit](https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=flat-square&logo=git&logoColor=white&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/commits/main)

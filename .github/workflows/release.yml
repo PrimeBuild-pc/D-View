@@ -65,6 +65,29 @@ jobs:
           AUTH_SECRET: build-only-secret-at-least-32-characters-long
 
       - if: steps.version.outputs.release == 'true'
+        name: Write release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Notes are built from commit subjects, not from merged pull requests.
+          # This repository commits straight to main, so GitHub's own generator
+          # finds no pull requests and produces an empty release.
+          previous="$(git tag -l 'v*' --sort=-v:refname | head -n 1)"
+          if [ -n "$previous" ]; then
+            range="$previous..HEAD"
+            echo "## Changes since $previous" > NOTES.md
+          else
+            range="HEAD"
+            echo "## Changes" > NOTES.md
+          fi
+          echo "" >> NOTES.md
+          git log --no-merges --pretty=format:'- %s' "$range" >> NOTES.md
+          echo "" >> NOTES.md
+          echo "" >> NOTES.md
+          echo "Self-hosted: see the [README](https://github.com/${{ github.repository }}#quick-start) to install or upgrade." >> NOTES.md
+          cat NOTES.md
+
+      - if: steps.version.outputs.release == 'true'
         name: Tag and release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -72,7 +95,4 @@ jobs:
         run: |
           git tag "v$VERSION"
           git push origin "v$VERSION"
-          gh release create "v$VERSION" \
-            --title "v$VERSION" \
-            --generate-notes \
-            --notes-start-tag "$(git describe --tags --abbrev=0 "v$VERSION^" 2>/dev/null || echo '')"
+          gh release create "v$VERSION" --title "v$VERSION" --notes-file NOTES.md
