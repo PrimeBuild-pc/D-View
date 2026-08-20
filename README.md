@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/in-development.svg" alt="in development..." width="420" />
+
 <img src="assets/banner.png" alt="D-View — see who can actually do what on your Discord server, and change it safely" width="100%" />
 
 <br />
