@@ -275,6 +275,14 @@ because Discord renders it at 32px in member lists.
 
 ---
 
+## Support the project
+
+If D-View is useful to you, you can support its development here:
+
+[![PayPal](https://img.shields.io/badge/Support-PayPal-0070BA?style=plastic&logo=paypal&logoColor=white)](https://paypal.me/PrimeBuildOfficial?country.x=IT&locale.x=it_IT)
+
+---
+
 <div align="center">
 
 [Security policy](SECURITY.md) · [Terms](TERMS.md) · [Privacy](PRIVACY.md) · [MIT Licence](LICENSE)
