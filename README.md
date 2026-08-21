@@ -6,28 +6,23 @@
 
 <br />
 
-[![CI](https://img.shields.io/github/actions/workflow/status/PrimeBuild-pc/D-View/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=2dd4a7&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/releases/latest)
-[![Stars](https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/stargazers)
-[![Issues](https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=flat-square&logo=github&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/issues)
-[![Last commit](https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=flat-square&logo=git&logoColor=white&color=5865F2&labelColor=0b1120)](https://github.com/PrimeBuild-pc/D-View/commits/main)
-[![Licence](https://img.shields.io/badge/licence-MIT-2dd4a7?style=flat-square&labelColor=0b1120)](LICENSE)
+<a href="https://github.com/PrimeBuild-pc/D-View/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=plastic&amp;logo=git&amp;logoColor=white"></a>
+<a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
+<a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="Open issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
 
-![Self-hosted](https://img.shields.io/badge/self--hosted-no%20cloud%2C%20no%20tracking-2dd4a7?style=flat-square&labelColor=0b1120)
-![Permissions](https://img.shields.io/badge/permissions-all%2053-5865F2?style=flat-square&labelColor=0b1120)
-![Languages](https://img.shields.io/badge/UI-7%20languages-5865F2?style=flat-square&labelColor=0b1120)
-![Writes](https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=flat-square&labelColor=0b1120)
+<a href="https://github.com/PrimeBuild-pc/D-View/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/PrimeBuild-pc/D-View/ci.yml?branch=main&amp;style=plastic&amp;logo=githubactions&amp;label=CI"></a>
+<a href="https://github.com/PrimeBuild-pc/D-View/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2ea44f?style=plastic"></a>
+<img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-no%20cloud%2C%20no%20tracking-2dd4a7?style=plastic">
+<img alt="Writes off by default" src="https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=plastic">
+<img alt="Seven UI languages" src="https://img.shields.io/badge/UI%20languages-7-5865F2?style=plastic&amp;logo=googletranslate&amp;logoColor=white">
 
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0b1120)
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs&labelColor=0b1120)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black&labelColor=0b1120)
-![Tailwind](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=0b1120)
-![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?style=flat-square&logo=prisma&logoColor=white&labelColor=0b1120)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white&labelColor=0b1120)
-![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220?style=flat-square&logo=pnpm&logoColor=white&labelColor=0b1120)
-![Vitest](https://img.shields.io/badge/Vitest-30%20tests-6E9F18?style=flat-square&logo=vitest&logoColor=white&labelColor=0b1120)
+<img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=plastic&amp;logo=typescript&amp;logoColor=white">
+<img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111111?style=plastic&amp;logo=nextdotjs&amp;logoColor=white">
+<img alt="React 19" src="https://img.shields.io/badge/React-19-087EA4?style=plastic&amp;logo=react&amp;logoColor=white">
+<img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=plastic&amp;logo=postgresql&amp;logoColor=white">
 
-**[Quick start](#quick-start) · [What it does](#what-it-does) · [Safety](#safety-model) · [Languages](#languages) · [Workspace](#workspace) · [Limits](#notes-and-limits)**
+<strong><a href="#quick-start">Quick start</a> · <a href="#what-it-does">What it does</a> · <a href="#safety-model">Safety</a> · <a href="#languages">Languages</a> · <a href="#workspace">Workspace</a> · <a href="#notes-and-limits">Limits</a></strong>
 
 </div>
 
