@@ -23,6 +23,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
 
       # The Prisma client is generated code the checked-in sources import, so it
       # has to exist before anything type-checks.
