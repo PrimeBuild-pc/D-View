@@ -3,7 +3,8 @@
 ## Done
 
 - Monorepo, strict TypeScript, ESLint, Prettier, Vitest.
-- Discord OAuth login with a signed httpOnly session cookie.
+- Discord OAuth login with an encrypted, expiring httpOnly session cookie,
+  canonical-origin validation, and fresh guild authorization.
 - Read-only REST sync of guild, roles, channels and overwrites, in one
   transaction, pruning entities deleted on Discord.
 - Bitfield-native permission engine matching Discord's documented
@@ -27,14 +28,19 @@
   verification pass for uncertain writes.
 - Rollback as a generated plan restoring only the touched bits.
 - Seven UI languages with English as the type-checked source.
-- `/setup` diagnostics with per-check remediation and a bot invite link.
+- `/setup` diagnostics with per-check remediation, authenticated live probes
+  and a convenience bot invite link (not the minimal read-only invite).
+- Self-hosting Dockerfile/Compose: persistent PostgreSQL, readiness-gated one-shot
+  schema synchronization, non-root standalone web, loopback web publication and
+  no published database port. Operator and authenticated agent guides.
 
 ## Not done
 
 - **Presets.** Named permission templates applied to a scope. Nothing has
   been built; the change-plan pipeline would carry them unchanged.
-- **Playwright end-to-end coverage.** The engine has unit tests; the UI
-  has none.
+- **Playwright end-to-end coverage.** API/security and UI rendering/accessibility
+  tests exist; authenticated browser, Docker runtime and live Discord workflows
+  still need staging verification.
 - **Scheduled or continuous sync.** Sync is manual and on demand.
 - **Permission Manager role.** Write access is owner or Administrator.
   A configurable per-guild role remains open (see open-questions.md).

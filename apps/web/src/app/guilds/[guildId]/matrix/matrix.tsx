@@ -74,6 +74,7 @@ export function Matrix({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative">
+          <span className="sr-only">{copy.explorer.searchRoles}</span>
           <IconSearch className="absolute top-2.5 left-2.5 text-ink-faint" />
           <Input
             value={roleQuery}
@@ -83,6 +84,7 @@ export function Matrix({
           />
         </label>
         <label className="relative">
+          <span className="sr-only">{copy.explorer.searchChannels}</span>
           <IconSearch className="absolute top-2.5 left-2.5 text-ink-faint" />
           <Input
             value={channelQuery}
@@ -100,17 +102,17 @@ export function Matrix({
       </div>
 
       {/* Counts are shown rather than silently truncating at 50 x 100. */}
-      <p className="text-xs text-ink-faint">
+      <p role="status" className="text-xs text-ink-faint">
         {fill(copy.matrix.showing, { roles: shownRoles.length, channels: shownChannels.length })}
       </p>
 
       <Card>
-        <CardBody className="overflow-x-auto p-0">
+        <CardBody className="overflow-x-auto p-0" tabIndex={0} role="region" aria-label={copy.matrix.title}>
           <table className="w-max border-collapse text-xs">
             <caption className="sr-only">{copy.matrix.title}</caption>
             <thead>
               <tr>
-                <th className="sticky left-0 z-20 border-b border-line bg-surface-raised px-3 py-2 text-left font-medium">
+                <th scope="col" className="sticky left-0 z-20 border-b border-line bg-surface-raised px-3 py-2 text-left font-medium">
                   {copy.common.role}
                 </th>
                 {shownChannels.map((channel) => (
@@ -152,6 +154,7 @@ export function Matrix({
                         <Link
                           href={`/guilds/${guildId}/explorer?role=${role.id}&channel=${channel.id}`}
                           title={`${role.name} → ${channel.name}`}
+                          aria-label={`${role.name} → ${channel.name}: ${value === 'admin' ? copy.matrix.legendAdmin : value === 'write' ? copy.matrix.legendWrite : value === 'read' ? copy.matrix.legendRead : copy.matrix.legendHidden}`}
                           className={cx(
                             'block h-6 w-full rounded text-center leading-6',
                             cellStyles[value],

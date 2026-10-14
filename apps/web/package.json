@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "start": "node ../../scripts/run.mjs start",
     "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",

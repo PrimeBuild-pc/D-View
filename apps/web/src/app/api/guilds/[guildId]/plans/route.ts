@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma, toJson } from '@dpd/database';
 import { indexSnapshot } from '@dpd/permission-engine';
-import { canWriteGuild, getSession } from '@/lib/session';
+import { guildAccess } from '@/lib/guild';
+import { invalidOrigin, readJson, requestError } from '@/lib/request';
 import {
   PlanValidationError,
   createPlanSchema,
@@ -12,21 +13,16 @@ import {
   warningsFor,
 } from '@/lib/plans';
 
-/** sameSite: 'lax' stops a cross-origin POST but not a same-site subdomain. */
-function wrongOrigin(request: Request): boolean {
-  const origin = request.headers.get('origin');
-  return Boolean(origin) && origin !== new URL(request.url).origin;
-}
-
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  if (wrongOrigin(request)) return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+  if (invalidOrigin(request)) return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
 
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canWriteGuild(guild));
-  if (!allowed || !session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const parsed = createPlanSchema.safeParse(await request.json().catch(() => null));
+  const access = await guildAccess(guildId);
+  if (!access) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { session } = access;
+  let body: unknown;
+  try { body = await readJson(request); } catch (error) { return requestError(error); }
+  const parsed = createPlanSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request', issues: parsed.error.issues }, { status: 400 });
   }
@@ -44,6 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     if (operations.length === 0) return NextResponse.json({ error: 'No operations' }, { status: 400 });
 
     const bot = await loadBotContext(guildId, indexSnapshot(loaded.snapshot));
+    if (!bot) return NextResponse.json({ error: 'Cannot verify bot capabilities. Try again later.' }, { status: 502 });
     const warnings = warningsFor(operations, loaded.snapshot, bot);
 
     const plan = await prisma.permissionChangePlan.create({
@@ -63,6 +60,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     if (error instanceof PlanValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    throw error;
+    return requestError(error);
   }
 }

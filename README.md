@@ -1,292 +1,166 @@
 <div align="center">
 
-<img src="assets/in-development.svg" alt="in development..." width="420" />
-
+<img src="assets/in-development.svg" alt="In development" width="420" />
 <img src="assets/banner.png" alt="D-View — see who can actually do what on your Discord server, and change it safely" width="100%" />
 
-<br />
-
-<a href="https://github.com/PrimeBuild-pc/D-View/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=plastic&amp;logo=git&amp;logoColor=white"></a>
-<a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
-<a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="Open issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
-
-<a href="https://github.com/PrimeBuild-pc/D-View/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/PrimeBuild-pc/D-View/ci.yml?branch=main&amp;style=plastic&amp;logo=githubactions&amp;label=CI"></a>
-<a href="https://github.com/PrimeBuild-pc/D-View/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
-<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2ea44f?style=plastic"></a>
-<img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-no%20cloud%2C%20no%20tracking-2dd4a7?style=plastic">
-<img alt="Writes off by default" src="https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=plastic">
-<img alt="Seven UI languages" src="https://img.shields.io/badge/UI%20languages-7-5865F2?style=plastic&amp;logo=googletranslate&amp;logoColor=white">
-
-<img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=plastic&amp;logo=typescript&amp;logoColor=white">
-<img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111111?style=plastic&amp;logo=nextdotjs&amp;logoColor=white">
-<img alt="React 19" src="https://img.shields.io/badge/React-19-087EA4?style=plastic&amp;logo=react&amp;logoColor=white">
-<img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=plastic&amp;logo=postgresql&amp;logoColor=white">
-
-<strong><a href="#quick-start">Quick start</a> · <a href="#what-it-does">What it does</a> · <a href="#safety-model">Safety</a> · <a href="#languages">Languages</a> · <a href="#workspace">Workspace</a> · <a href="#notes-and-limits">Limits</a></strong>
+[Quick start](#quick-start) · [Features](#features) · [Safety](#safety) · [Operations](docs/self-hosting.md) · [Development](docs/self-hosting.md#native-development) · [AI agents](docs/agent-workflow.md)
 
 </div>
 
----
+# D-View
 
-<a id="what-it-does"></a>
+A self-hosted Discord permission dashboard for server owners and administrators.
+Run your own application and bot; sign in through Discord OAuth. There is no
+hosted D-View service. Your instance stores server data in your PostgreSQL database
+and communicates with Discord. See [Privacy](PRIVACY.md).
 
-## 🔍 What it does
+## Features
 
-D-View is a **self-hosted** dashboard for Discord server owners and admins. You run
-your own copy, with your own bot. There is no hosted service, no account to create,
-and no third party that ever sees your server's data.
+- **Explorer:** resolve role/member permissions and show the ordered explanation.
+- **Matrix and audits:** see role-by-channel access and risky configurations.
+- **Members:** individual lookup; optional full member sync.
+- **History:** snapshots, comparisons, export and validated import into a plan.
+- **Changes:** review masked permission edits, apply with confirmation, inspect
+  per-operation results, and generate a reviewed rollback plan.
+- **Languages:** English, Italiano, Deutsch, Français, Español, 中文 and Русский.
 
-It answers the questions Discord's own interface makes hard:
+Category overwrites are not an extra inheritance layer: Discord copies them onto
+synced children. Role allows/denies are aggregated, not applied in role order.
+The [permission engine](docs/permission-engine.md) runs locally in the browser
+and server; it is not an LLM.
 
-| Question | What D-View shows |
-|---|---|
-| **Who can see this channel, and why?** | Not just yes or no — the ordered chain of rules that produced the answer, with the decisive step highlighted. |
-| **What can *this person* actually do?** | Real resolution: the union of all their roles, owner and Administrator bypass, member-specific overwrites, and timeout state. |
-| **What is risky right now?** | Ten audit rules: dangerous `@everyone` permissions, channels nobody can reach, public channels inside private categories, conflicting overwrites, and more. |
-| **What changed?** | Every sync stores a snapshot. Compare any two and read the difference in plain language. |
-| **Can I fix it without breaking something?** | Edit in the UI, review a readable diff, apply behind a confirmation proportional to the risk, and roll it back if you were wrong. |
+## Quick start
 
-<details>
-<summary><b>Why not just use Discord's own permission screen?</b></summary>
+**Requirements:** Git, Docker Engine with Linux containers (24+ recommended) and
+Docker Compose v2.20+ supporting healthy/completed dependencies. Docker Desktop
+works on Windows/macOS. Host Node.js and pnpm are **not required** for Compose.
+The first build downloads images and npm packages; normal use needs Discord access.
 
-<br />
-
-Discord shows you the overwrites on one channel. It does not tell you the
-*result*, and it certainly does not tell you *why* the result is what it is.
-
-Three things in particular are easy to get wrong, and D-View gets them right:
-
-- **Categories are not inheritance.** Discord's resolution never consults a
-  channel's parent. Syncing copies overwrites onto the child at edit time, which
-  is precisely why a channel can drift out of sync — and why reasoning from the
-  category gives wrong answers for every channel that has.
-- **A role's own permissions are not the whole story.** Resolution always starts
-  from `@everyone` and unions the rest on top. A role with nothing set still
-  inherits everything `@everyone` has.
-- **Conflicting roles do not resolve in order.** Discord collects *every* deny,
-  applies them, then collects every allow. Applying them role by role gives a
-  different answer whenever two roles disagree.
-
-</details>
-
----
-
-<a id="quick-start"></a>
-
-## ⚡ Quick start
-
-**Prerequisites** — [Node.js](https://nodejs.org) (recent LTS),
-[pnpm](https://pnpm.io) via Corepack, [Docker](https://docs.docker.com/get-docker/)
-for PostgreSQL.
-
-### 1 · Create a Discord application
-
-1. Open the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**. Use [`assets/icon.png`](assets/icon.png) as the app icon if you want the one from this repo.
-2. **OAuth2** → copy the **Client ID** and **Client Secret**.
-3. **OAuth2** → add this redirect URL, exactly:
-   ```
-   http://localhost:3000/api/auth/callback
-   ```
-4. **Bot** → **Reset Token**, and copy it. Treat it like a password.
-5. *Optional* — **Bot → Privileged Gateway Intents** → enable **Server Members Intent**. Only needed to search the full member list; single-member lookup works without it.
-
-### 2 · Install
+### 1. Download and configure
 
 ```bash
 git clone https://github.com/PrimeBuild-pc/D-View.git
 cd D-View
-corepack enable pnpm
-pnpm install
 cp .env.example .env
 ```
 
-Fill in `.env`:
+On PowerShell use `Copy-Item .env.example .env`. Edit **the root `.env`** locally:
+
+| Variable                | Set it to                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `APP_URL`               | `http://localhost:3000` for local use. For a remote instance, your canonical **HTTPS** origin, without a path. |
+| `AUTH_SECRET`           | A fresh random secret of at least 32 characters.                                                               |
+| `POSTGRES_PASSWORD`     | A separate random **hexadecimal** password for a new database.                                                 |
+| `DISCORD_CLIENT_ID`     | Application/client ID from the Developer Portal.                                                               |
+| `DISCORD_CLIENT_SECRET` | OAuth2 client secret.                                                                                          |
+| `DISCORD_BOT_TOKEN`     | Bot token.                                                                                                     |
+
+Generate each secret separately with `openssl rand -hex 32`, or with a trusted
+local password generator (64 hex characters). Keep them out of chat, screenshots,
+logs and version control. Leave `DISCORD_WRITES_LOCKED=true` for read-only use.
+Compose constructs `DATABASE_URL` internally; do not set it for this install.
+**Already have a database volume?** Follow [existing installations](docs/self-hosting.md#existing-installations) before starting.
+
+### 2. Set up Discord
+
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications)
+   → **New Application**. Optional app icon: [`assets/icon.png`](assets/icon.png).
+2. Under **OAuth2**, copy the **Client ID** and **Client Secret** into `.env`.
+3. Under **OAuth2 → Redirects**, add exactly
+   `http://localhost:3000/api/auth/callback`, or your `APP_URL` plus
+   `/api/auth/callback`. Save changes. Dashboard login uses `identify` and `guilds`;
+   it does not require additional user OAuth scopes.
+4. Under **Bot**, create/reset the bot token and enter it in `.env`.
+5. Under **Installation** (or **OAuth2 → URL Generator**), select **Guild Install**
+   and the `bot` scope. For read-only use, invite with **no management permissions**
+   (`permissions=0`); give **View Channels** only where channel visibility is needed.
+   Do **not** grant Administrator, Manage Roles or Manage Channels for read-only use.
+   Invite to your server with an account allowed to manage/install apps.
+6. Optional: **Bot → Privileged Gateway Intents → Server Members Intent** is needed
+   only for the full member list. Single-member lookup works without it.
+   Message Content and Presence intents are not needed; there is no Gateway worker.
+
+The `/setup` page also offers a read-only invite link with no management
+permissions. See [optional writes](docs/self-hosting.md#optional-discord-writes)
+before deliberately granting management permissions.
+
+### 3. Start the whole application
 
 ```bash
-AUTH_SECRET=              # openssl rand -base64 32
-DISCORD_CLIENT_ID=
-DISCORD_CLIENT_SECRET=
-DISCORD_BOT_TOKEN=
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/discord_permission_dashboard
+docker compose up -d --build
+docker compose ps -a
+docker compose logs --tail=100 schema web
 ```
 
-### 3 · Run
+Compose starts PostgreSQL, waits for database readiness, runs a **one-shot schema
+job**, then starts the non-root web server. `schema` should exit with code **0**;
+if it fails, web does not start. The database uses the persistent `postgres_data`
+volume and has **no published host port**. Web binds only to **127.0.0.1:3000**.
+
+Open **<http://localhost:3000/setup>**, then sign in with Discord. Only guild owners
+or users with Administrator can access a server. Database connectivity and bot
+validity are checked **after login**; anonymous diagnostics only show configuration.
+Choose your server → **Sync now** → **Explorer**. Sync reads Discord and writes its
+cache/snapshot to your local database; it does not mutate Discord permissions.
+
+Use the exact `APP_URL` hostname: `localhost` and `127.0.0.1` are different origins.
+For remote hosting, see [HTTPS and reverse proxies](docs/self-hosting.md#https-and-remote-access).
+
+## Safety
+
+This installation locks Discord writes in configuration. If you deliberately
+remove that lock, per-server Settings can grant a 60-minute unlock (default) or
+persistent unlock. `DISCORD_WRITES_ALWAYS=true` bypasses that unlock mechanism;
+it is **not recommended**. `DISCORD_WRITES_LOCKED=true` takes precedence.
+
+Plans are rebuilt server-side, authorization is checked against Discord, and
+writes re-read live state and preserve untouched permission bits. Drift is skipped;
+uncertain results are recorded and verified instead of blindly retried. Rollback
+creates a **new plan**, not a blind restore. Discord writes are not atomic, so
+inspect every result and test on a disposable role/channel, never `@everyone`.
+See the [security model](docs/security-model.md).
+
+## Operations and development
+
+- [Configuration, native development and troubleshooting](docs/self-hosting.md)
+- [Updates, backups, restores and schema changes](docs/self-hosting.md#updates-and-schema-changes)
+- [Authenticated AI-agent workflow](docs/agent-workflow.md) · [Repository agent rules](AGENTS.md)
+- [Architecture](docs/architecture.md) · [Implementation status](docs/implementation-plan.md)
+
+Native development uses **Node.js 24 LTS** (or Node >=22.13; pnpm 11 and the locked
+tooling need more than an early Node 22 release) and **pnpm 11.9.0**, pinned in
+`package.json`. Run from the repository root; the root `dev`, `build`, `start`,
+`db:push` and `db:generate` scripts load root `.env`, respecting existing environment
+overrides. `DPD_ENV_FILE` selects a different env file. Direct package commands
+bypass that root loader; follow the [native guide](docs/self-hosting.md#native-development).
+
+Verification (with dependencies installed, using fake environment in an isolated
+copy when credentials exist):
 
 ```bash
-docker compose up -d
-pnpm --filter @dpd/database db:push
-pnpm dev
-```
-
-Open **<http://localhost:3000/setup>**. Every prerequisite is checked there, and
-each failing check tells you exactly how to fix it. That page also generates the
-**bot invite link** with the right permissions.
-
-### 4 · Use it
-
-1. Invite the bot (link on `/setup`).
-2. Sign in with Discord.
-3. Pick your server → **Sync now**. This only reads.
-4. Open **Explorer**, pick a role, pick a channel.
-
----
-
-<a id="safety-model"></a>
-
-## 🛡 Safety model
-
-Writing to Discord is **off by default**. When you enable it, every change goes
-through a reviewable plan:
-
-| Guard | What it prevents |
-|---|---|
-| **Operations rebuilt server-side** | The browser cannot claim what a change does, or how risky it is. Nothing it sends is trusted. |
-| **Masked intents** | A change declares exactly which permission bits it may touch. Everything else is copied from the live value, so a plan can never strip a permission it was not about. |
-| **Live re-read before each write** | If someone changed it in the meantime, that operation is skipped and reported rather than silently overwritten. |
-| **Continue-on-error** | Applying reports every operation as applied, skipped, failed or unknown. Anything unknown is verified afterwards by re-reading it. |
-| **Pre-apply snapshot + rollback** | Rollback generates a *new reviewable plan* restoring only the bits that were touched — not a blind restore that would clobber concurrent edits. |
-| **Audit-log attribution** | Changes appear in your Discord audit log, tied to the plan and the person who ran it. |
-| **Proportional confirmation** | Risky changes require typing your server's name, so you have to look at what you are pointing at. |
-
-### Unlocking writes
-
-Writing is controlled **entirely from the dashboard**, per server, under
-**Settings** — no file to edit, no restart. Two policies:
-
-| Policy | Behaviour |
-|---|---|
-| **Temporary unlock** *(default)* | Unlocking lasts **60 minutes**, then locks itself automatically. |
-| **Stay unlocked** | Once unlocked it stays unlocked until you switch it off. |
-
-The default is the temporary one because a switch left on stays on silently and
-nothing reminds you — but it is a preference, not a restriction. Pick whichever
-you want, and switch at any time. Changing policy always leaves writing locked,
-so switching is never itself the thing that turns it on.
-
-While writing is unlocked, **every page of that server shows a banner** saying so,
-and in temporary mode it shows when it closes.
-
-The bot's role must sit **above** every role you intend to edit — Discord refuses
-otherwise, and a bot can only grant permissions it holds itself.
-
-<details>
-<summary><b>Fixing the decision in <code>.env</code> instead</b></summary>
-
-<br />
-
-If you would rather the answer not be clickable at all, two variables override
-the dashboard entirely. `LOCKED` wins if both are set.
-
-```bash
-DISCORD_WRITES_LOCKED=true   # writing is impossible, whatever the UI says
-DISCORD_WRITES_ALWAYS=true   # writing is always on, no unlocking needed
-```
-
-With either set, the Settings page shows the state and explains that
-configuration is in charge, rather than offering controls that would do nothing.
-
-</details>
-
-> [!WARNING]
-> Test on a throwaway channel first. Never test on `@everyone`.
-
----
-
-<a id="languages"></a>
-
-## 🌍 Languages
-
-<div align="center">
-
-🇬🇧 English · 🇮🇹 Italiano · 🇩🇪 Deutsch · 🇫🇷 Français · 🇪🇸 Español · 🇨🇳 中文 · 🇷🇺 Русский
-
-</div>
-
-Your choice is remembered in a cookie, and first-time visitors get their browser's
-language when it is one of the seven.
-
-English is the source of truth and the other locales are type-checked against it,
-so a missing translation **fails the build** rather than leaving a blank patch of
-interface. The permission engine emits message codes rather than prose, which is
-what makes the explanation trace and the audit list translatable at all.
-
----
-
-<a id="workspace"></a>
-
-## 🧱 Workspace
-
-```
-apps/web                      Next.js app: UI, API routes, Discord REST calls
-packages/permission-engine    Pure permission resolution. No network, no database.
-packages/shared               Snapshot types, zod schemas, Discord permission bits
-packages/database             Prisma client and schema
-assets                        Brand assets and the sources they are generated from
-```
-
-The permission engine is deliberately dependency-free and side-effect-free. That
-is not stylistic: it is what lets the identical code run on the server and in your
-browser, which is why selecting a role or channel is instant rather than a page
-load.
-
-```bash
-pnpm test        # 30 unit tests, concentrated where correctness matters
-pnpm typecheck   # strict TypeScript across the workspace
+pnpm test
+pnpm typecheck
 pnpm lint
 pnpm build
+node --test tests/infra.test.mjs
 ```
 
-The tests cover bitfield round-trips, Discord's exact overwrite ordering, owner
-and Administrator bypass, member resolution, and the guard that refuses any write
-reaching outside its mask.
+## Limits and costs
 
-<details>
-<summary><b>Brand assets</b></summary>
+- Software is MIT licensed. You pay for your own machine/VPS, disk, backups,
+  electricity and, if applicable, domain/TLS hosting. There is **no runtime LLM,
+  AI API charge, model download or bundled AI agent**. External coding agents may
+  have their own subscription/API costs. No hosted-free-tier promise is made.
+- Sync is manual; snapshots/history have no automatic retention cleanup.
+- Discord REST availability, rate limits and role hierarchy apply. Large plans
+  use conservative spacing, not full per-bucket scheduling.
+- No role/channel creation, deletion or reordering. Import cannot migrate legacy
+  name-based permission snapshots; re-sync for bitfield-format snapshots.
+- Browser end-to-end coverage is not yet provided; current automated checks cover
+  engine, API/security, UI rendering/accessibility and tooling behavior.
 
-<br />
+## Support
 
-| File | Use |
-|---|---|
-| `assets/icon.svg` | Source for the mark. Pure geometry, no text, so it rasterises identically everywhere. |
-| `assets/icon.png` | 512×512 — upload as the Discord application icon. |
-| `assets/icon-128.png` | Pre-scaled copy. |
-| `assets/banner.png` | This README's header. |
-| `assets/banner.html` | Banner source; screenshot with headless Chrome to regenerate. |
+[Support development](https://paypal.me/PrimeBuildOfficial?country.x=IT&locale.x=it_IT)
 
-The mark is the same shield the app uses in its own header, carrying an allowed
-row and a denied row — what the product actually shows. Discord crops avatars to
-a circle, so nothing sits near the corners, and the detail is deliberately coarse
-because Discord renders it at 32px in member lists.
-
-</details>
-
----
-
-<a id="notes-and-limits"></a>
-
-## 📋 Notes and limits
-
-- **This is not a hosted service.** Each installation talks to Discord with its own credentials and stores data in its own database.
-- **Discord does not expose members' country or language.** The `locale` field exists only for the signed-in user, never for members read through a bot, so D-View makes no attempt to guess.
-- **These endpoints have no ETag.** Live state is re-read immediately before each write to narrow the window, but a change made in the same instant can still be missed. D-View reports what it did rather than claiming atomicity.
-- **Snapshots from before the bitfield migration cannot be upgraded.** They stored permission *names* against a table that had already dropped what it did not recognise. Re-sync instead.
-- **Verification is not required** to run this. Discord only requires it past 100 servers, and a self-hosted bot lives in your own.
-- **Versions.** The running version is shown in the dashboard footer and on `/setup`. A release is cut automatically when the version in `package.json` changes on `main` and the checks pass.
-
----
-
-## Support the project
-
-If D-View is useful to you, you can support its development here:
-
-[![PayPal](https://img.shields.io/badge/Support-PayPal-0070BA?style=plastic&logo=paypal&logoColor=white)](https://paypal.me/PrimeBuildOfficial?country.x=IT&locale.x=it_IT)
-
----
-
-<div align="center">
-
-[Security policy](SECURITY.md) · [Terms](TERMS.md) · [Privacy](PRIVACY.md) · [MIT Licence](LICENSE)
-
-<sub>Built for people who administer Discord servers and would like to know what their permissions actually do.</sub>
-
-</div>
+[Security policy](SECURITY.md) · [Terms](TERMS.md) · [Privacy](PRIVACY.md) · [MIT license](LICENSE)

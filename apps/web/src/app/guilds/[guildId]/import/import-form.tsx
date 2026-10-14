@@ -98,18 +98,19 @@ export function ImportForm({
               },
       );
 
-    const response = await fetch(`/api/guilds/${guildId}/plans`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ baseSnapshotId: result.baseSnapshotId, reason: reason.trim() || undefined, edits }),
-    });
-    const body = (await response.json()) as { planId?: string; error?: string };
-    if (!response.ok || !body.planId) {
-      setError(body.error ?? 'Failed');
+    try {
+      const response = await fetch(`/api/guilds/${guildId}/plans`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ baseSnapshotId: result.baseSnapshotId, reason: reason.trim() || undefined, edits }),
+      });
+      const body = (await response.json()) as { planId?: string; error?: string };
+      if (!response.ok || !body.planId) throw new Error(body.error ?? copy.common.somethingWentWrong);
+      router.push(`/guilds/${guildId}/changes/${body.planId}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
       setCreating(false);
-      return;
     }
-    router.push(`/guilds/${guildId}/changes/${body.planId}`);
   }
 
   const selectedCount = result?.operations.filter((_, index) => included[index] ?? true).length ?? 0;
@@ -126,14 +127,23 @@ export function ImportForm({
             <input
               type="file"
               accept="application/json,.json"
+              disabled={validating || creating}
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                const text = await file.text();
-                setJson(text);
-                void validate(text);
+                setValidating(true);
+                setResult(null);
+                setError(null);
+                try {
+                  const text = await file.text();
+                  setJson(text);
+                  await validate(text);
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : String(cause));
+                  setValidating(false);
+                }
               }}
-              className="text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-overlay file:px-3 file:py-1.5 file:text-ink"
+              className="max-w-full text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-overlay file:px-3 file:py-1.5 file:text-ink"
             />
           </label>
 
@@ -141,7 +151,12 @@ export function ImportForm({
             <span className="mb-1 block text-ink-muted">{copy.importPage.orPaste}</span>
             <textarea
               value={json}
-              onChange={(event) => setJson(event.target.value)}
+              onChange={(event) => {
+                setJson(event.target.value);
+                setResult(null);
+                setError(null);
+              }}
+              disabled={validating || creating}
               rows={8}
               spellCheck={false}
               className="w-full rounded-lg border border-line bg-surface p-3 font-mono text-xs text-ink"
@@ -151,13 +166,14 @@ export function ImportForm({
           <Button
             tone="primary"
             onClick={() => validate(json)}
-            disabled={validating || json.trim().length === 0}
+            disabled={validating || creating || json.trim().length === 0}
           >
             {validating ? copy.importPage.validating : copy.importPage.validate}
           </Button>
 
+          <p role="status" className="sr-only">{validating ? copy.importPage.validating : creating ? copy.changes.creatingPlan : result ? copy.importPage.valid : ''}</p>
           {error ? (
-            <Notice tone="critical" title={copy.importPage.invalid}>
+            <Notice tone="critical" title={copy.common.somethingWentWrong}>
               {error}
             </Notice>
           ) : null}
@@ -182,7 +198,8 @@ export function ImportForm({
                   <div className="flex gap-2 text-xs">
                     <button
                       type="button"
-                      className="text-ink-muted hover:text-ink"
+                      disabled={creating}
+                      className="text-ink-muted hover:text-ink disabled:opacity-50"
                       onClick={() =>
                         setIncluded(Object.fromEntries(result.operations.map((_, index) => [index, true])))
                       }
@@ -191,7 +208,8 @@ export function ImportForm({
                     </button>
                     <button
                       type="button"
-                      className="text-ink-muted hover:text-ink"
+                      disabled={creating}
+                      className="text-ink-muted hover:text-ink disabled:opacity-50"
                       onClick={() =>
                         setIncluded(Object.fromEntries(result.operations.map((_, index) => [index, false])))
                       }
@@ -208,12 +226,14 @@ export function ImportForm({
                         type="checkbox"
                         className="mt-3"
                         checked={included[index] ?? true}
+                        disabled={creating}
+                        aria-describedby={`import-operation-${index}`}
                         onChange={(event) =>
                           setIncluded((current) => ({ ...current, [index]: event.target.checked }))
                         }
                         aria-label={copy.changes.include}
                       />
-                      <div className="min-w-0 flex-1">
+                      <div id={`import-operation-${index}`} className="min-w-0 flex-1">
                         <OperationSummary
                           operation={{
                             ...operation,
@@ -235,6 +255,7 @@ export function ImportForm({
                   <span className="mb-1 block text-ink-muted">{copy.changes.planReason}</span>
                   <Input
                     value={reason}
+                    disabled={creating}
                     onChange={(event) => setReason(event.target.value)}
                     placeholder={copy.changes.planReasonPlaceholder}
                   />

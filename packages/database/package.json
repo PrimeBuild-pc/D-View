@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "db:push": "prisma db push --schema prisma/schema.prisma"
+    "db:push": "node scripts/push.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.0"

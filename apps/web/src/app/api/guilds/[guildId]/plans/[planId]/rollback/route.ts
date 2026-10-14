@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma, toJson } from '@dpd/database';
 import { indexSnapshot } from '@dpd/permission-engine';
 import { toBits } from '@dpd/shared';
-import { canWriteGuild, getSession } from '@/lib/session';
+import { guildAccess } from '@/lib/guild';
+import { invalidOrigin } from '@/lib/request';
 import { deserialiseOperation, loadBotContext, loadSnapshot, serialiseOperation, warningsFor } from '@/lib/plans';
 
 /**
@@ -18,14 +19,13 @@ export async function POST(
   { params }: { params: Promise<{ guildId: string; planId: string }> },
 ) {
   const { guildId, planId } = await params;
-  const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin) {
+  if (invalidOrigin(request)) {
     return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
   }
 
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canWriteGuild(guild));
-  if (!allowed || !session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const access = await guildAccess(guildId);
+  if (!access) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { session } = access;
 
   const plan = await prisma.permissionChangePlan.findFirst({
     where: { id: planId, guildId },
@@ -36,6 +36,9 @@ export async function POST(
   });
   if (!plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
 
+  if (plan.status === 'executing' || plan.status === 'draft') {
+    return NextResponse.json({ error: 'Wait for this plan to finish before generating a rollback.' }, { status: 409 });
+  }
   const results = plan.executions[0]?.results ?? [];
   const appliedById = new Map(results.filter((result) => result.status === 'applied').map((r) => [r.operationId, r]));
   if (appliedById.size === 0) {
@@ -54,7 +57,9 @@ export async function POST(
       // write, recorded per operation at apply time — not the snapshot.
       const allow = toBits(observed.liveBeforeAllow ?? row.expectedAllow) & operation.touched;
       const deny = toBits(observed.liveBeforeDeny ?? row.expectedDeny) & operation.touched;
-      const existedBefore = allow !== 0n || deny !== 0n;
+      // Legacy results cannot distinguish an absent overwrite from an explicit zero one.
+      const existedBefore = observed.liveBeforeExists ?? (toBits(observed.liveBeforeAllow ?? row.expectedAllow) !== 0n ||
+        toBits(observed.liveBeforeDeny ?? row.expectedDeny) !== 0n);
       return {
         ...operation,
         kind:
@@ -71,6 +76,7 @@ export async function POST(
     });
 
   const bot = await loadBotContext(guildId, indexSnapshot(loaded.snapshot));
+  if (!bot) return NextResponse.json({ error: 'Cannot verify bot capabilities.' }, { status: 502 });
   const warnings = warningsFor(inverted, loaded.snapshot, bot);
 
   const rollback = await prisma.permissionChangePlan.create({

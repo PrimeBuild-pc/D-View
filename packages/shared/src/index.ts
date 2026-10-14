@@ -119,18 +119,19 @@ export const SNAPSHOT_SCHEMA_VERSION = '2.0.0';
  * represent a permission Discord ships after this build, so every export/import
  * round trip through one silently drops the permissions it does not recognise.
  */
-export const permissionBitsSchema = z.string().regex(/^\d+$/, 'Expected a decimal permission bitfield');
+export const snowflakeSchema = z.string().regex(/^\d{1,20}$/, 'Expected a Discord snowflake');
+export const permissionBitsSchema = z.string().max(40).regex(/^\d+$/, 'Expected a decimal permission bitfield');
 
 export const permissionOverwriteSchema = z.object({
   targetType: z.enum(['role', 'member']),
-  targetId: z.string().min(1),
+  targetId: snowflakeSchema,
   allow: permissionBitsSchema,
   deny: permissionBitsSchema,
 });
 
 export const roleSnapshotSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
+  id: snowflakeSchema,
+  name: z.string().min(1).max(100),
   color: z.string().optional(),
   position: z.number().int(),
   managed: z.boolean(),
@@ -138,26 +139,48 @@ export const roleSnapshotSchema = z.object({
 });
 
 export const channelSnapshotSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
+  id: snowflakeSchema,
+  name: z.string().min(1).max(100),
   type: z.number().int(),
-  parentId: z.string().optional(),
+  parentId: snowflakeSchema.optional(),
   position: z.number().int(),
-  overwrites: z.array(permissionOverwriteSchema),
+  overwrites: z.array(permissionOverwriteSchema).max(1000),
 });
 
 export const permissionSnapshotSchema = z.object({
   schemaVersion: z.literal(SNAPSHOT_SCHEMA_VERSION),
   exportedAt: z.iso.datetime(),
   guild: z.object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    ownerId: z.string().min(1),
-    everyoneRoleId: z.string().min(1),
+    id: snowflakeSchema,
+    name: z.string().min(1).max(100),
+    ownerId: snowflakeSchema,
+    everyoneRoleId: snowflakeSchema,
   }),
-  roles: z.array(roleSnapshotSchema),
-  channels: z.array(channelSnapshotSchema),
+  roles: z.array(roleSnapshotSchema).min(1).max(250),
+  channels: z.array(channelSnapshotSchema).max(1000),
   metadata: z.record(z.string(), z.unknown()).optional(),
+}).superRefine((snapshot, ctx) => {
+  const roles = new Set(snapshot.roles.map((role) => role.id));
+  const channels = new Set(snapshot.channels.map((channel) => channel.id));
+  if (roles.size !== snapshot.roles.length || channels.size !== snapshot.channels.length) {
+    ctx.addIssue({ code: 'custom', message: 'Duplicate role or channel ID.' });
+  }
+  if (snapshot.guild.everyoneRoleId !== snapshot.guild.id || !roles.has(snapshot.guild.id)) {
+    ctx.addIssue({ code: 'custom', message: 'Invalid @everyone role.' });
+  }
+  for (const channel of snapshot.channels) {
+    const targets = new Set<string>();
+    for (const overwrite of channel.overwrites) {
+      if (targets.has(overwrite.targetId) || (overwrite.targetType === 'role' && !roles.has(overwrite.targetId))) {
+        ctx.addIssue({ code: 'custom', message: 'Duplicate or unknown overwrite target.' });
+      }
+      targets.add(overwrite.targetId);
+      if (/^\d{1,40}$/.test(overwrite.allow) && /^\d{1,40}$/.test(overwrite.deny) &&
+        (BigInt(overwrite.allow) & BigInt(overwrite.deny)) !== 0n) {
+        ctx.addIssue({ code: 'custom', message: 'Overwrite allow and deny overlap.' });
+      }
+    }
+  }
 });
 
 /**

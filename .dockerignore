@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.env
+**/.env.*
+.verification
+**/.verification
+*.log
+backups
+**/*.dump
+README.md
+AGENTS.md
+docs
+assets

@@ -1,6 +1,7 @@
 # Architecture
 
 ## Stack
+
 - TypeScript end-to-end, strict mode, `exactOptionalPropertyTypes`.
 - Monorepo with pnpm workspaces.
 - `apps/web`: Next.js App Router dashboard, API routes, and all Discord REST calls.
@@ -30,15 +31,18 @@ exactly one consumer.
 ## Component boundaries
 
 ### Web app
+
 Owns UI, routing, OAuth, API routes, and Discord REST. It must not contain
 permission-calculation logic beyond calling the engine.
 
 ### Shared package
+
 Owns domain types, zod schemas, the Discord permission bit table, and the
 masked-intent primitives (`applyMask`, `assertOnlyTouched`) that every
 write goes through.
 
 ### Permission engine
+
 Pure functions only. No Discord API, database, filesystem, or network.
 This is a hard constraint rather than a stylistic one: it is what allows
 the identical code to run on the server and in the browser, which is what
@@ -49,16 +53,20 @@ explanation steps. The engine emits **codes**, never prose — otherwise the
 two most content-heavy panels in the product could not be translated.
 
 ### Database package
+
 Owns the persistence schema for cached Discord entities, snapshots, change
 plans, executions and per-operation results.
 
 ## Key decisions
 
 - **Prisma over Drizzle**, for schema ergonomics and migration tooling.
-- **`prisma db push` rather than migrations**, because every installation
-  owns its own database and starts from an empty one.
+- **`prisma db push` rather than versioned migrations** is the current schema
+  setup/update mechanism. Existing installations require backups and compatibility
+  review; destructive schema changes need an explicit migration plan. See
+  [self-hosting operations](self-hosting.md#updates-and-schema-changes).
 - **Zod for validation** on every externally-supplied payload.
-- **Vitest** for unit tests, concentrated in the permission engine.
+- **Vitest** for engine, shared validation, API/security, UI rendering and tooling
+  tests; Node's test runner for offline Docker/Compose self-checks.
 - **Tailwind v4 with `@theme` tokens, no component library.** Generated
   component boilerplate would outweigh what this app actually uses.
 - **No `discord-api-types` dependency.** The permission bit table is

@@ -31,6 +31,7 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm lint
       - run: pnpm -r test
+      - run: node --test tests/infra.test.mjs
 
       # A build catches what typecheck cannot: server-only modules reaching
       # client components, which is a real failure this project has already hit.

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@dpd/database';
 import { DiscordError, discord, type DiscordMemberPayload } from '@/lib/discord';
-import { canReadGuild, getSession } from '@/lib/session';
+import { authorizeGuild, guildAccess } from '@/lib/guild';
+import { invalidOrigin } from '@/lib/request';
+import { ABANDONED_AFTER_MS, EXECUTION_DEADLINE_MS } from '@/lib/recovery';
 
 export const maxDuration = 300;
 
@@ -37,9 +39,7 @@ const toView = (member: DiscordMemberPayload): MemberView => ({
  */
 export async function GET(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canReadGuild(guild));
-  if (!allowed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await guildAccess(guildId))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const query = new URL(request.url).searchParams;
   const raw = query.get('user')?.trim() ?? '';
@@ -55,13 +55,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
 
   try {
     const member = await discord<DiscordMemberPayload>(`/guilds/${guildId}/members/${userId}`);
-    return NextResponse.json({ member: toView(member) });
+    return NextResponse.json({ member: toView(member) }, { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     if (error instanceof DiscordError && error.status === 404) {
       return NextResponse.json({ error: 'That user is not a member of this server.' }, { status: 404 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Member lookup failed' },
+      { error: 'Member lookup failed. Check bot access or try again later.' },
       { status: 502 },
     );
   }
@@ -73,28 +73,43 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
  */
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin) {
+  if (invalidOrigin(request)) {
     return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
   }
 
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canReadGuild(guild));
-  if (!allowed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const access = await guildAccess(guildId);
+  if (!access) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await prisma.discordGuild.findUnique({ where: { id: guildId }, select: { id: true } }))) {
+    return NextResponse.json({ error: 'Sync this server before importing members.' }, { status: 409 });
+  }
 
   const runStartedAt = new Date();
+  const claimed = await prisma.discordGuild.updateMany({
+    where: { id: guildId, OR: [
+      { membersSyncStartedAt: null }, { membersSyncStartedAt: { lt: new Date(Date.now() - ABANDONED_AFTER_MS) } },
+    ] }, data: { membersSyncStartedAt: runStartedAt },
+  });
+  if (claimed.count !== 1) return NextResponse.json({ error: 'A member sync is already running for this server.' }, { status: 409 });
   let after = '0';
   let imported = 0;
 
   try {
     for (;;) {
+      if (!(await authorizeGuild(access.session, guildId))) throw new Error('Server authorization changed.');
       const page = await discord<DiscordMemberPayload[]>(
         `/guilds/${guildId}/members?limit=1000&after=${after}`,
       );
+      if (Date.now() - runStartedAt.getTime() > EXECUTION_DEADLINE_MS) throw new Error('Member sync timed out. Try again later.');
       if (page.length === 0) break;
+      const next = page.at(-1)!.user.id;
+      if (!/^\d{1,20}$/.test(next) || BigInt(next) <= BigInt(after)) throw new Error('Invalid member pagination.');
 
-      await prisma.$transaction(
-        page.map((member) => {
+      await prisma.$transaction(async (tx) => {
+        const owned = await tx.discordGuild.updateMany({
+          where: { id: guildId, membersSyncStartedAt: runStartedAt }, data: { membersSyncStartedAt: runStartedAt },
+        });
+        if (owned.count !== 1 || Date.now() - runStartedAt.getTime() > EXECUTION_DEADLINE_MS) throw new Error('Member sync lease expired.');
+        await Promise.all(page.map((member) => {
           const row = {
             username: member.user.username,
             globalName: member.user.global_name ?? null,
@@ -109,24 +124,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
             // Set explicitly on every run so the prune below can rely on it.
             syncedAt: runStartedAt,
           };
-          return prisma.guildMember.upsert({
+          return tx.guildMember.upsert({
             where: { guildId_userId: { guildId, userId: member.user.id } },
             create: { guildId, userId: member.user.id, ...row },
             update: row,
           });
-        }),
-      );
+        }));
+      }, { timeout: 30_000 });
 
       imported += page.length;
-      after = page[page.length - 1]!.user.id;
+      after = next;
       if (page.length < 1000) break;
     }
 
-    // Anyone not touched by this run has left the server.
-    const pruned = await prisma.guildMember.deleteMany({
-      where: { guildId, syncedAt: { lt: runStartedAt } },
+    // Pruning and completion share the lease lock; an abandoned run cannot prune a newer one.
+    const pruned = await prisma.$transaction(async (tx) => {
+      const owned = await tx.discordGuild.updateMany({
+        where: { id: guildId, membersSyncStartedAt: runStartedAt }, data: { membersSyncedAt: runStartedAt },
+      });
+      if (owned.count !== 1 || Date.now() - runStartedAt.getTime() > EXECUTION_DEADLINE_MS) throw new Error('Member sync lease expired.');
+      return tx.guildMember.deleteMany({ where: { guildId, syncedAt: { lt: runStartedAt } } });
     });
-    await prisma.discordGuild.update({ where: { id: guildId }, data: { membersSyncedAt: runStartedAt } });
 
     return NextResponse.json({ imported, pruned: pruned.count });
   } catch (error) {
@@ -141,8 +159,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
       );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Member sync failed' },
+      { error: 'Member sync failed. Check bot access or try again later.' },
       { status: 502 },
     );
+  } finally {
+    await prisma.discordGuild.updateMany({
+      where: { id: guildId, membersSyncStartedAt: runStartedAt }, data: { membersSyncStartedAt: null },
+    });
   }
 }
