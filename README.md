@@ -163,7 +163,7 @@ connect to Discord. The Compose quick start above still builds the local checkou
 - [Configuration, native development and troubleshooting](docs/self-hosting.md)
 - [Updates, backups, restores and schema changes](docs/self-hosting.md#updates-and-schema-changes)
 - [Authenticated AI-agent workflow](docs/agent-workflow.md) · [Repository agent rules](AGENTS.md)
-- [Architecture](docs/architecture.md) · [Implementation status](docs/implementation-plan.md)
+- [Architecture](docs/architecture.md) · [Snapshot format](docs/json-schema-design.md)
 
 Native development uses **Node.js 24 LTS** (or Node >=22.13; pnpm 11 and the locked
 tooling need more than an early Node 22 release) and **pnpm 11.9.0**, pinned in

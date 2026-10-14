@@ -14,3 +14,6 @@ README.md
 AGENTS.md
 docs
 assets
+**/next-env.d.ts
+**/*.tsbuildinfo
+.claude/settings.local.json

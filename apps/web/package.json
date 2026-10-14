@@ -7,7 +7,7 @@
     "dev": "next dev",
     "start": "node ../../scripts/run.mjs start",
     "build": "next build",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests"
   },
