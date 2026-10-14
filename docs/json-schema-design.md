@@ -6,35 +6,37 @@ validated before anything acts on them.
 
 ## Version 2.0.0
 
+The authoritative validator is `permissionSnapshotSchema` in
+`packages/shared/src/index.ts`. This example uses synthetic IDs:
+
 ```json
 {
   "schemaVersion": "2.0.0",
   "exportedAt": "2026-08-14T10:33:21.004Z",
   "guild": {
-    "id": "1206...",
+    "id": "120600000000000001",
     "name": "My Server",
-    "ownerId": "884...",
-    "everyoneRoleId": "1206..."
+    "ownerId": "884000000000000001",
+    "everyoneRoleId": "120600000000000001"
   },
   "roles": [
     {
-      "id": "1207...",
-      "name": "Moderator",
+      "id": "120600000000000001",
+      "name": "@everyone",
       "color": "#5865f2",
-      "position": 10,
+      "position": 0,
       "managed": false,
-      "permissions": "8598323264"
+      "permissions": "1024"
     }
   ],
   "channels": [
     {
-      "id": "1208...",
+      "id": "120800000000000001",
       "name": "announcements",
       "type": 0,
-      "parentId": "1209...",
       "position": 3,
       "overwrites": [
-        { "targetType": "role", "targetId": "1206...", "allow": "1024", "deny": "2048" }
+        { "targetType": "role", "targetId": "120600000000000001", "allow": "1024", "deny": "2048" }
       ]
     }
   ],
@@ -50,9 +52,10 @@ had already dropped everything it did not recognise — so a name-based
 export was lossy the moment it was written, and applying one stripped
 real permissions off live roles.
 
-`permissions`, `allow` and `deny` are therefore decimal strings validated
-by `/^\d+$/` and nothing more. An unknown future bit round-trips through
-export and import untouched.
+`permissions`, `allow` and `deny` are therefore decimal strings, limited to
+40 digits. Unknown permission bits are preserved within that limit. IDs contain
+1–20 digits; roles, channels and overwrite targets must be unique, `@everyone`
+must match the guild ID, and allow/deny masks cannot overlap.
 
 **1.0.0 snapshots are rejected, not upgraded.** Reconstructing bits from
 names would reintroduce exactly the loss that made them wrong. Re-sync.
@@ -63,6 +66,8 @@ names would reintroduce exactly the loss that made them wrong. Re-sync.
 announcement and thread channels survive. An earlier mapping collapsed
 everything to three names and discarded the rest, which meant the audit
 reported those servers as clean because it could not see the channels.
+The guild-channels sync endpoint does not enumerate every thread; representing a
+channel type in the schema does not imply complete thread collection or write support.
 
 Categories are channels with `type: 4`. There is one `channels` array
 rather than separate `categories` and `channels`; `parentId` expresses
@@ -83,7 +88,7 @@ An imported file is never applied directly:
 8. Present a readable diff with per-operation include/exclude.
 9. Create a change plan — the server rebuilds every operation; nothing the
    client sent about what a change does, or how risky it is, is trusted.
-10. Require confirmation proportional to the risk.
+10. Require the guild name as explicit confirmation before execution.
 11. Snapshot before applying, apply, and store per-operation results.
 
 ## Conventions

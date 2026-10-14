@@ -10,3 +10,8 @@ coverage
 *.tsbuildinfo
 .vite
 packages/database/src/generated
+next-env.d.ts
+backups/
+*.dump
+*.log
+.claude/settings.local.json
