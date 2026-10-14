@@ -122,7 +122,9 @@ See the [security model](docs/security-model.md).
 
 ## Container images
 
-After successful checks on `main`, CI publishes Linux AMD64 images to GHCR:
+After successful checks on `main`, CI publishes Linux AMD64 images to GHCR.
+Maintainers can also run **Actions → CI → Run workflow → main** to retry a
+publication; it reruns the same checks before building and pushing images:
 
 - Web: `ghcr.io/primebuild-pc/d-view:latest`
 - Schema job: `ghcr.io/primebuild-pc/d-view-schema:latest`

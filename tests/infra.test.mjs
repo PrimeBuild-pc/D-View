@@ -78,9 +78,11 @@ try {
     const publish = workflow.split('\n  publish:\n')[1];
     assert.ok(publish, 'Missing image publication job');
     assert.match(publish, /needs: check/);
-    assert.match(
-      publish,
-      /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/,
+    assert.ok(workflow.includes('\n  workflow_dispatch:\n'));
+    assert.ok(
+      publish.includes(
+        "if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'",
+      ),
     );
     assert.match(publish, /contents: read/);
     assert.match(publish, /packages: write/);
