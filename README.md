@@ -120,6 +120,18 @@ creates a **new plan**, not a blind restore. Discord writes are not atomic, so
 inspect every result and test on a disposable role/channel, never `@everyone`.
 See the [security model](docs/security-model.md).
 
+## Container images
+
+After successful checks on `main`, CI publishes Linux AMD64 images to GHCR:
+
+- Web: `ghcr.io/primebuild-pc/d-view:latest`
+- Schema job: `ghcr.io/primebuild-pc/d-view-schema:latest`
+
+Both also have a tag containing the full commit SHA. Use the same commit tag for
+both images when pinning a deployment. The schema image is a one-shot database
+upgrade job, not another web server. Publication does **not** start containers or
+connect to Discord. The Compose quick start above still builds the local checkout.
+
 ## Operations and development
 
 - [Configuration, native development and troubleshooting](docs/self-hosting.md)

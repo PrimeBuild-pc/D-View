@@ -73,6 +73,40 @@ const configure = (values) => {
 };
 
 try {
+  await test('CI publishes both Docker targets only after checks on main', () => {
+    const workflow = read('.github/workflows/ci.yml').replace(/\r\n/g, '\n');
+    const publish = workflow.split('\n  publish:\n')[1];
+    assert.ok(publish, 'Missing image publication job');
+    assert.match(publish, /needs: check/);
+    assert.match(
+      publish,
+      /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/,
+    );
+    assert.match(publish, /contents: read/);
+    assert.match(publish, /packages: write/);
+    for (const [target, image] of [
+      ['web', 'd-view'],
+      ['schema', 'd-view-schema'],
+    ]) {
+      assert.ok(
+        publish.includes(`target: ${target}\n            image: ${image}`),
+      );
+    }
+    assert.ok(publish.includes('target: ${{ matrix.target }}'));
+    assert.ok(
+      publish.includes('ghcr.io/primebuild-pc/${{ matrix.image }}:latest'),
+    );
+    assert.ok(
+      publish.includes(
+        'ghcr.io/primebuild-pc/${{ matrix.image }}:${{ github.sha }}',
+      ),
+    );
+    assert.doesNotMatch(
+      publish,
+      /docker (?:run|compose)|ssh |pull_request_target/,
+    );
+  });
+
   await test('build excludes private env/local artifacts and serves non-root standalone static assets', () => {
     const ignored = read('.dockerignore').split(/\r?\n/);
     for (const pattern of [
