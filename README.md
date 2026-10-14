@@ -3,7 +3,31 @@
 <img src="assets/in-development.svg" alt="In development" width="420" />
 <img src="assets/banner.png" alt="D-View — see who can actually do what on your Discord server, and change it safely" width="100%" />
 
-[Quick start](#quick-start) · [Features](#features) · [Safety](#safety) · [Operations](docs/self-hosting.md) · [Development](docs/self-hosting.md#native-development) · [AI agents](docs/agent-workflow.md)
+<br />
+
+<p>
+  <a href="https://github.com/PrimeBuild-pc/D-View/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/PrimeBuild-pc/D-View?style=plastic&amp;logo=git&amp;logoColor=white"></a>
+  <a href="https://github.com/PrimeBuild-pc/D-View/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
+  <a href="https://github.com/PrimeBuild-pc/D-View/issues"><img alt="Open issues" src="https://img.shields.io/github/issues/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
+</p>
+
+<p>
+  <a href="https://github.com/PrimeBuild-pc/D-View/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/PrimeBuild-pc/D-View/ci.yml?branch=main&amp;style=plastic&amp;logo=githubactions&amp;label=CI"></a>
+  <a href="https://github.com/PrimeBuild-pc/D-View/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/PrimeBuild-pc/D-View?style=plastic&amp;logo=github"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2ea44f?style=plastic"></a>
+  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-your%20infrastructure-2dd4a7?style=plastic">
+  <img alt="Writes off by default" src="https://img.shields.io/badge/writes-off%20by%20default-ff6b81?style=plastic">
+  <img alt="Seven UI languages" src="https://img.shields.io/badge/UI%20languages-7-5865F2?style=plastic&amp;logo=googletranslate&amp;logoColor=white">
+</p>
+
+<p>
+  <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=plastic&amp;logo=typescript&amp;logoColor=white">
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111111?style=plastic&amp;logo=nextdotjs&amp;logoColor=white">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-087EA4?style=plastic&amp;logo=react&amp;logoColor=white">
+  <img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=plastic&amp;logo=postgresql&amp;logoColor=white">
+</p>
+
+<strong><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#safety">Safety</a> · <a href="docs/self-hosting.md">Operations</a> · <a href="docs/self-hosting.md#native-development">Development</a> · <a href="docs/agent-workflow.md">AI agents</a></strong>
 
 </div>
 
