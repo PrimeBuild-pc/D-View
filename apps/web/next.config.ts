@@ -13,6 +13,9 @@ const version = (
 
 const nextConfig: NextConfig = {
   turbopack: { root },
+  output: 'standalone',
+  outputFileTracingRoot: root,
+  transpilePackages: ['@dpd/shared', '@dpd/permission-engine', '@dpd/database'],
   env: { APP_VERSION: version },
 };
 

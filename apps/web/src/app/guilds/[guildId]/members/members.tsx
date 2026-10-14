@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   VIEW_CHANNEL,
@@ -35,12 +35,14 @@ export function MemberLookup({
   guildId: string;
 }) {
   const index = useMemo(() => indexSnapshot(snapshot), [snapshot]);
+  const lookupId = useId();
   const [query, setQuery] = useState('');
   const [member, setMember] = useState<MemberView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function lookup() {
+    if (loading || !query.trim()) return;
     setLoading(true);
     setError(null);
     setMember(null);
@@ -85,22 +87,32 @@ export function MemberLookup({
       <Card>
         <CardBody className="space-y-3">
           <SectionTitle>{copy.members.lookup}</SectionTitle>
-          <p className="text-sm text-ink-muted">{copy.members.lookupHelp}</p>
-          <div className="flex flex-wrap gap-2">
+          <p id={`${lookupId}-help`} className="text-sm text-ink-muted">{copy.members.lookupHelp}</p>
+          <form
+            className="flex flex-wrap gap-2"
+            aria-busy={loading}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void lookup();
+            }}
+          >
+            <label htmlFor={lookupId} className="sr-only">{copy.members.lookupPlaceholder}</label>
             <Input
+              id={lookupId}
+              aria-describedby={`${lookupId}-help`}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') lookup();
-              }}
+              disabled={loading}
+              required
               placeholder={copy.members.lookupPlaceholder}
               className="max-w-xs"
             />
-            <Button tone="primary" onClick={lookup} disabled={loading || query.trim().length === 0}>
+            <Button type="submit" tone="primary" disabled={loading || query.trim().length === 0}>
               <IconUser />
               {loading ? copy.common.loading : copy.members.lookupAction}
             </Button>
-          </div>
+          </form>
+          <p role="status" className="sr-only">{loading ? copy.common.loading : member ? copy.members.effectivePermissions : ''}</p>
           {error ? <Notice tone="critical">{error}</Notice> : null}
         </CardBody>
       </Card>
@@ -173,11 +185,11 @@ export function MemberLookup({
                   return (
                     <li
                       key={channel.id}
-                      className="defer-paint flex items-center gap-2 border-b border-line/60 px-4 py-1.5 text-sm last:border-0"
+                      className="defer-paint flex flex-wrap items-center gap-2 border-b border-line/60 px-4 py-1.5 text-sm last:border-0"
                     >
                       <ChannelIcon kind={kind} className={visible ? 'text-ink-muted' : 'text-ink-faint'} />
-                      <span className={cx('truncate', !visible && 'opacity-60')}>{channel.name}</span>
-                      <span className="ml-auto flex gap-1">
+                      <span className={cx('min-w-0 truncate', !visible && 'opacity-60')}>{channel.name}</span>
+                      <span className="ml-auto flex flex-wrap gap-1">
                         {verdicts(result.raw, kind).map((verdict) => (
                           <Badge key={verdict.key} tone={verdict.tone}>
                             {copy.explorer[verdict.key as keyof Dict['explorer']]}
@@ -187,6 +199,7 @@ export function MemberLookup({
                       <Link
                         href={`/guilds/${guildId}/explorer?channel=${channel.id}`}
                         className="text-xs text-ink-faint hover:text-ink"
+                        aria-label={`${copy.nav.explorer}: ${channel.name}`}
                       >
                         →
                       </Link>
@@ -219,13 +232,14 @@ export function MemberBulk({
 
   async function sync() {
     setState({ status: 'running' });
-    const response = await fetch(`/api/guilds/${guildId}/members`, { method: 'POST' });
-    const payload = (await response.json()) as { error?: string; imported?: number };
-    if (!response.ok) {
-      setState({ status: 'error', ...(payload.error ? { message: payload.error } : {}) });
-      return;
+    try {
+      const response = await fetch(`/api/guilds/${guildId}/members`, { method: 'POST' });
+      const payload = (await response.json()) as { error?: string; imported?: number };
+      if (!response.ok) throw new Error(payload.error ?? copy.common.somethingWentWrong);
+      window.location.reload();
+    } catch (cause) {
+      setState({ status: 'error', message: cause instanceof Error ? cause.message : String(cause) });
     }
-    window.location.reload();
   }
 
   return (
@@ -239,9 +253,10 @@ export function MemberBulk({
         <Button onClick={sync} disabled={state.status === 'running'}>
           {state.status === 'running' ? copy.members.bulkSyncing : copy.members.bulkAction}
         </Button>
+        <p role="status" className="sr-only">{state.status === 'running' ? copy.members.bulkSyncing : ''}</p>
         {/* Degrades with the exact remedy rather than an opaque 403. */}
         {state.status === 'error' ? (
-          <Notice tone="warning" title={copy.members.intentRequired}>
+          <Notice tone="warning" role="alert" title={copy.common.somethingWentWrong}>
             {state.message ?? copy.members.intentHelp}
           </Notice>
         ) : null}

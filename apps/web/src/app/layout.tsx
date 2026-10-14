@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {copy.nav.overview}
         </a>
         <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
-          <div className="mx-auto flex max-w-[110rem] items-center justify-between gap-4 px-4 py-3">
+          <div className="mx-auto flex max-w-[110rem] flex-wrap items-center justify-between gap-4 px-4 py-3">
             <Brand tagline={copy.tagline} />
             <div className="flex items-center gap-4">
               <LanguagePicker lang={lang} label={copy.nav.language} />
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto max-w-[110rem] px-4 py-6">
+        <main id="main" tabIndex={-1} className="mx-auto max-w-[110rem] scroll-mt-24 px-4 py-6">
           {children}
         </main>
         <footer className="mx-auto max-w-[110rem] px-4 pt-2 pb-6 text-xs text-ink-faint">

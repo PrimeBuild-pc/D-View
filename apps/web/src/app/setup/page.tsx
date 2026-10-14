@@ -3,6 +3,8 @@ import { t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { writesForcedAlways, writesLocked } from '@/lib/writes';
 import { appVersion } from '@/lib/version';
+import { appUrl } from '@/lib/request';
+import { getSession } from '@/lib/session';
 import { Badge, Card, CardBody, LinkButton, SectionTitle } from '@/components/ui';
 import { IconCheck, IconCross, IconDash } from '@/components/icons';
 
@@ -30,6 +32,11 @@ export default async function SetupPage() {
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? '';
   const clientId = process.env.DISCORD_CLIENT_ID ?? '';
   const checks: Check[] = [];
+  try {
+    checks.push({ label: 'APP_URL', level: 'ok', detail: appUrl().origin });
+  } catch {
+    checks.push({ label: 'APP_URL', level: 'problem', help: 'Set APP_URL to the public HTTPS origin (HTTP is allowed only on loopback).' });
+  }
 
   checks.push({
     label: copy.setup.authSecret,
@@ -37,12 +44,17 @@ export default async function SetupPage() {
     help: copy.setup.authSecretHelp,
   });
 
+  const session = await getSession();
   let database: Check = { label: copy.setup.database, level: 'problem', help: copy.setup.databaseHelp };
-  try {
-    await prisma.discordGuild.count();
-    database = { label: copy.setup.database, level: 'ok' };
-  } catch (error) {
-    database.detail = error instanceof Error ? error.message.split('\n')[0] : String(error);
+  if (session) {
+    try {
+      await prisma.discordGuild.count();
+      database = { label: copy.setup.database, level: 'ok' };
+    } catch {
+      database.detail = copy.setup.problem;
+    }
+  } else if (process.env.DATABASE_URL) {
+    database = { label: copy.setup.database, level: 'optional', detail: copy.auth.loginRequired };
   }
   checks.push(database);
 
@@ -54,11 +66,15 @@ export default async function SetupPage() {
 
   const token = process.env.DISCORD_BOT_TOKEN ?? '';
   let botCheck: Check = { label: copy.setup.botToken, level: 'problem', help: copy.setup.botTokenHelp };
-  if (token) {
+  if (token && !session) {
+    botCheck = { label: copy.setup.botToken, level: 'optional', detail: copy.auth.loginRequired };
+  }
+  if (token && session) {
     try {
       const response = await fetch('https://discord.com/api/v10/users/@me', {
         headers: { authorization: `Bot ${token}` },
         cache: 'no-store',
+        signal: AbortSignal.timeout(10_000),
       });
       if (response.ok) {
         const me = (await response.json()) as { username: string };
@@ -66,8 +82,8 @@ export default async function SetupPage() {
       } else {
         botCheck.detail = `HTTP ${response.status}`;
       }
-    } catch (error) {
-      botCheck.detail = error instanceof Error ? error.message : String(error);
+    } catch {
+      botCheck.detail = copy.setup.problem;
     }
   }
   checks.push(botCheck);
@@ -91,9 +107,9 @@ export default async function SetupPage() {
     help: copy.setup.writesHelp,
   });
 
-  // Minimum permissions: read the guild, manage roles and channels for applying.
+  // Start read-only; operators grant management permissions only when enabling writes.
   const invite = clientId
-    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=268435472`
+    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=0`
     : null;
 
   return (

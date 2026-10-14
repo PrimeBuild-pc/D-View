@@ -6,6 +6,9 @@ import {
   applyMask,
   fromBits,
   isCurrentSnapshot,
+  isThread,
+  permissionBitsSchema,
+  snowflakeSchema,
   permissionBits,
   permissionSnapshotSchema,
   toBits,
@@ -41,7 +44,7 @@ export async function loadSnapshot(guildId: string, snapshotId?: string): Promis
     return { status: 'outdated', version: (row.data as { schemaVersion?: string })?.schemaVersion ?? null };
   }
   const parsed = permissionSnapshotSchema.safeParse(row.data);
-  if (!parsed.success) return { status: 'outdated', version: row.version };
+  if (!parsed.success || parsed.data.guild.id !== guildId) return { status: 'outdated', version: row.version };
   return { status: 'ok', snapshot: parsed.data as PermissionSnapshot, id: row.id, createdAt: row.createdAt };
 }
 
@@ -49,7 +52,7 @@ export async function loadSnapshot(guildId: string, snapshotId?: string): Promis
 // Edit intents
 // ---------------------------------------------------------------------------
 
-const bitsField = z.string().regex(/^\d+$/);
+const bitsField = permissionBitsSchema;
 
 /**
  * What the client is allowed to send.
@@ -62,29 +65,29 @@ const bitsField = z.string().regex(/^\d+$/);
 export const editSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('role'),
-    roleId: z.string().min(1),
+    roleId: snowflakeSchema,
     touched: bitsField,
     nextAllow: bitsField,
   }),
   z.object({
     kind: z.literal('overwrite'),
-    channelId: z.string().min(1),
+    channelId: snowflakeSchema,
     targetType: z.enum(['role', 'member']),
-    targetId: z.string().min(1),
+    targetId: snowflakeSchema,
     touched: bitsField,
     nextAllow: bitsField,
     nextDeny: bitsField,
   }),
   z.object({
     kind: z.literal('delete-overwrite'),
-    channelId: z.string().min(1),
+    channelId: snowflakeSchema,
     targetType: z.enum(['role', 'member']),
-    targetId: z.string().min(1),
+    targetId: snowflakeSchema,
   }),
 ]);
 
 export const createPlanSchema = z.object({
-  baseSnapshotId: z.string().min(1),
+  baseSnapshotId: z.string().min(1).max(100),
   reason: z.string().max(400).optional(),
   edits: z.array(editSchema).min(1).max(500),
 });
@@ -106,6 +109,7 @@ export async function resolveEdits(
   edits: readonly PlanEdit[],
   snapshot: PermissionSnapshot,
 ): Promise<ChangeOperation[]> {
+  if (snapshot.guild.id !== guildId) throw new PlanValidationError('Snapshot belongs to a different guild.');
   const [roles, channels] = await Promise.all([
     prisma.discordRole.findMany({ where: { guildId }, select: { id: true } }),
     prisma.discordChannel.findMany({ where: { guildId }, select: { id: true } }),
@@ -113,12 +117,25 @@ export async function resolveEdits(
   const roleIds = new Set(roles.map((role) => role.id));
   const channelIds = new Set(channels.map((channel) => channel.id));
   const index = indexSnapshot(snapshot);
+  const targets = new Set<string>();
+  // Sequential validation avoids flooding Discord with up to 500 member lookups.
+  const operations: ChangeOperation[] = [];
+  for (const edit of edits) {
+    const key = edit.kind === 'role' ? `role:${edit.roleId}` : `${edit.channelId}:${edit.targetId}`;
+    if (targets.has(key)) throw new PlanValidationError('A plan cannot edit the same target twice.');
+    targets.add(key);
+    operations.push(await resolve(edit));
+  }
+  return operations;
 
-  return edits.map((edit): ChangeOperation => {
+  async function resolve(edit: PlanEdit): Promise<ChangeOperation> {
     if (edit.kind === 'role') {
       if (!roleIds.has(edit.roleId)) throw new PlanValidationError(`Role ${edit.roleId} does not belong to this guild.`);
+      const role = index.roles.get(edit.roleId);
+      if (!role || role.managed) throw new PlanValidationError('Role is missing from this snapshot or managed by Discord.');
       const touched = toBits(edit.touched);
-      const live = index.rolePermissions.get(edit.roleId) ?? 0n;
+      if (touched === 0n) throw new PlanValidationError('No permission bits selected.');
+      const live = index.rolePermissions.get(edit.roleId)!;
       return {
         kind: 'set-role-permissions',
         roleId: edit.roleId,
@@ -133,10 +150,19 @@ export async function resolveEdits(
     if (!channelIds.has(edit.channelId)) {
       throw new PlanValidationError(`Channel ${edit.channelId} does not belong to this guild.`);
     }
-    if (edit.targetType === 'role' && !roleIds.has(edit.targetId)) {
+    const channel = index.channels.get(edit.channelId);
+    if (!channel || isThread(channel.type)) throw new PlanValidationError('Channel is missing or cannot have overwrites.');
+    if (edit.targetType === 'role' && (!roleIds.has(edit.targetId) || !index.roles.has(edit.targetId))) {
       throw new PlanValidationError(`Role ${edit.targetId} does not belong to this guild.`);
     }
     const existing = index.overwrites.get(edit.channelId)?.get(edit.targetId);
+    if (existing && existing.targetType !== edit.targetType) throw new PlanValidationError('Overwrite target type changed.');
+    if (edit.targetType === 'member' && edit.kind !== 'delete-overwrite') {
+      try {
+        const member = await discord<DiscordMemberPayload>(`/guilds/${guildId}/members/${edit.targetId}`);
+        if (member.user.id !== edit.targetId) throw new Error('Wrong member');
+      } catch { throw new PlanValidationError('Overwrite target is not a current member of this server.'); }
+    }
 
     if (edit.kind === 'delete-overwrite') {
       return {
@@ -153,6 +179,9 @@ export async function resolveEdits(
     }
 
     const touched = toBits(edit.touched);
+    if (touched === 0n || (toBits(edit.nextAllow) & toBits(edit.nextDeny) & touched) !== 0n) {
+      throw new PlanValidationError('Select non-overlapping permission bits.');
+    }
     return {
       kind: 'set-channel-overwrite',
       channelId: edit.channelId,
@@ -164,7 +193,7 @@ export async function resolveEdits(
       expectedAllow: existing?.allow ?? 0n,
       expectedDeny: existing?.deny ?? 0n,
     };
-  });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +231,8 @@ export interface BotContext {
 
 export async function loadBotContext(guildId: string, index: GuildIndex): Promise<BotContext | null> {
   try {
-    const me = await discord<DiscordMemberPayload>(`/guilds/${guildId}/members/@me`);
+    const user = await discord<{ id: string }>('/users/@me');
+    const me = await discord<DiscordMemberPayload>(`/guilds/${guildId}/members/${user.id}`);
     const highest = me.roles.reduce((max, roleId) => Math.max(max, index.roles.get(roleId)?.position ?? 0), 0);
     return { userId: me.user.id, roleIds: me.roles, highestRolePosition: highest };
   } catch {
@@ -332,7 +362,7 @@ export const serialiseOperation = (operation: ChangeOperation, order: number) =>
   order,
 });
 
-export const deserialiseOperation = (row: {
+export function deserialiseOperation(row: {
   kind: string;
   roleId: string | null;
   channelId: string | null;
@@ -343,7 +373,25 @@ export const deserialiseOperation = (row: {
   nextDeny: string;
   expectedAllow: string;
   expectedDeny: string;
-}): ChangeOperation => ({
+}): ChangeOperation {
+  const fields = [row.touchedBits, row.nextAllow, row.nextDeny, row.expectedAllow, row.expectedDeny];
+  if (!fields.every((value) => permissionBitsSchema.safeParse(value).success) ||
+    !['set-role-permissions', 'set-channel-overwrite', 'delete-channel-overwrite'].includes(row.kind)) {
+    throw new PlanValidationError('Invalid stored operation. Create a new plan.');
+  }
+  if (row.kind === 'set-role-permissions') {
+    if (!snowflakeSchema.safeParse(row.roleId).success || row.channelId || row.targetId || row.targetType) {
+      throw new PlanValidationError('Invalid stored role target.');
+    }
+  } else if (row.roleId || !snowflakeSchema.safeParse(row.channelId).success ||
+    !snowflakeSchema.safeParse(row.targetId).success || !['role', 'member'].includes(row.targetType ?? '')) {
+    throw new PlanValidationError('Invalid stored overwrite target.');
+  }
+  if ((toBits(row.nextAllow) & toBits(row.nextDeny) & toBits(row.touchedBits)) !== 0n ||
+    (row.kind === 'delete-channel-overwrite' && (toBits(row.nextAllow) !== 0n || toBits(row.nextDeny) !== 0n))) {
+    throw new PlanValidationError('Invalid stored permission intent.');
+  }
+  return {
   kind: row.kind as ChangeOperation['kind'],
   ...(row.roleId ? { roleId: row.roleId } : {}),
   ...(row.channelId ? { channelId: row.channelId } : {}),
@@ -354,7 +402,8 @@ export const deserialiseOperation = (row: {
   nextDeny: toBits(row.nextDeny),
   expectedAllow: toBits(row.expectedAllow),
   expectedDeny: toBits(row.expectedDeny),
-});
+  };
+}
 
 export function requiresReinforcedConfirmation(warnings: readonly PlanWarning[]): boolean {
   return warnings.some((warning) => warning.severity === 'critical');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button, Input, Notice } from '@/components/ui';
 import type { Dict } from '@/lib/i18n';
@@ -35,6 +35,7 @@ export function ApplyForm({
   copy: Dict;
 }) {
   const [typed, setTyped] = useState('');
+  const mismatchId = useId();
   const matches = typed.trim() === guildName;
 
   return (
@@ -50,6 +51,9 @@ export function ApplyForm({
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
           aria-label={fill(copy.changes.confirmTyping, { name: guildName })}
+          aria-invalid={typed.length > 0 && !matches}
+          aria-describedby={typed.length > 0 && !matches ? mismatchId : undefined}
+          required
           placeholder={guildName}
           className="max-w-xs"
           autoComplete="off"
@@ -57,7 +61,7 @@ export function ApplyForm({
         <Submit label={copy.changes.applyPlan} pending={copy.changes.applying} disabled={!matches} />
       </div>
       {typed.length > 0 && !matches ? (
-        <p className="text-xs text-critical">{copy.changes.confirmMismatch}</p>
+        <p id={mismatchId} className="text-xs text-critical">{copy.changes.confirmMismatch}</p>
       ) : null}
     </form>
   );

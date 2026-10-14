@@ -1,260 +1,238 @@
 import { NextResponse } from 'next/server';
 import { prisma, toJson } from '@dpd/database';
-import {
-  applyMask,
-  assertOnlyTouched,
-  fromBits,
-  toBits,
-  type Bitfield,
-} from '@dpd/shared';
+import { applyMask, assertOnlyTouched, fromBits, isThread, toBits, type Bitfield } from '@dpd/shared';
 import type { ChangeOperation } from '@dpd/permission-engine';
-import {
-  DiscordError,
-  DiscordGlobalRateLimit,
-  discord,
-  spaceWrites,
-  type DiscordChannelPayload,
-  type DiscordRolePayload,
-} from '@/lib/discord';
-import { canWriteGuild, getSession } from '@/lib/session';
+import { DiscordError, DiscordGlobalRateLimit, discord, spaceWrites,
+  type DiscordChannelPayload, type DiscordRolePayload, type DiscordMemberPayload } from '@/lib/discord';
+import { authorizeGuild, guildAccess } from '@/lib/guild';
 import { deserialiseOperation } from '@/lib/plans';
+import { appUrl, invalidOrigin, readForm, requestError } from '@/lib/request';
+import { snapshotGuild } from '@/lib/snapshots';
 import { writeState } from '@/lib/writes';
+import { EXECUTION_DEADLINE_MS } from '@/lib/recovery';
 
 export const maxDuration = 300;
-
 type OpStatus = 'applied' | 'skipped-noop' | 'skipped-conflict' | 'failed' | 'unknown';
-
+interface Live { allow: Bitfield; deny: Bitfield; exists: boolean }
 interface OpOutcome {
-  operationId: string;
-  status: OpStatus;
-  liveBeforeAllow?: string;
-  liveBeforeDeny?: string;
-  liveAfterAllow?: string;
-  liveAfterDeny?: string;
-  httpStatus?: number;
-  discordCode?: number;
-  detail?: string;
+  operationId: string; status: OpStatus; liveBeforeAllow?: string; liveBeforeDeny?: string;
+  liveAfterAllow?: string; liveAfterDeny?: string; liveBeforeExists?: boolean; liveAfterExists?: boolean;
+  httpStatus?: number; discordCode?: number; detail?: string;
 }
+const redirect = (guildId: string, planId: string, status: string) =>
+  NextResponse.redirect(new URL(`/guilds/${guildId}/changes/${planId}?execute=${status}`, appUrl()), 303);
 
-const redirect = (request: Request, guildId: string, planId: string, status: string) =>
-  NextResponse.redirect(new URL(`/guilds/${guildId}/changes/${planId}?execute=${status}`, request.url), 303);
-
-/** Read live values for exactly the target an operation touches. */
-async function readLive(
-  guildId: string,
-  operation: ChangeOperation,
-): Promise<{ allow: Bitfield; deny: Bitfield } | null> {
+async function readLive(guildId: string, operation: ChangeOperation): Promise<Live | null> {
   if (operation.kind === 'set-role-permissions') {
     const roles = await discord<DiscordRolePayload[]>(`/guilds/${guildId}/roles`);
     const role = roles.find((candidate) => candidate.id === operation.roleId);
-    return role ? { allow: toBits(role.permissions), deny: 0n } : null;
+    if (role?.managed) throw new Error('Managed roles cannot be edited.');
+    return role ? { allow: toBits(role.permissions), deny: 0n, exists: true } : null;
   }
   const channel = await discord<DiscordChannelPayload>(`/channels/${operation.channelId}`);
+  if (channel.guild_id !== guildId || isThread(channel.type)) throw new Error('Channel is outside this server or cannot have overwrites.');
+  if (operation.targetType === 'role') {
+    const roles = await discord<DiscordRolePayload[]>(`/guilds/${guildId}/roles`);
+    if (!roles.some((role) => role.id === operation.targetId)) return null;
+  } else if (operation.kind !== 'delete-channel-overwrite') {
+    const member = await discord<DiscordMemberPayload>(`/guilds/${guildId}/members/${operation.targetId}`);
+    if (member.user.id !== operation.targetId) return null;
+  }
   const overwrite = (channel.permission_overwrites ?? []).find((o) => o.id === operation.targetId);
-  return { allow: toBits(overwrite?.allow), deny: toBits(overwrite?.deny) };
+  if (overwrite && overwrite.type !== (operation.targetType === 'member' ? 1 : 0)) throw new Error('Overwrite target type changed.');
+  return { allow: toBits(overwrite?.allow), deny: toBits(overwrite?.deny), exists: Boolean(overwrite) };
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ guildId: string; planId: string }> },
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ guildId: string; planId: string }> }) {
   const { guildId, planId } = await params;
-
-  const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin) {
-    return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
-  }
-
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canWriteGuild(guild));
-  if (!allowed || !session) return redirect(request, guildId, planId, 'unauthorized');
-
-  const form = await request.formData();
+  if (invalidOrigin(request)) return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+  const access = await guildAccess(guildId);
+  if (!access) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { session } = access;
+  let form: FormData;
+  try { form = await readForm(request); } catch (error) { return requestError(error); }
   const plan = await prisma.permissionChangePlan.findFirst({
-    where: { id: planId, guildId },
-    include: { operations: { orderBy: { order: 'asc' } }, guild: true },
+    where: { id: planId, guildId }, include: { operations: { orderBy: { order: 'asc' } }, guild: true },
   });
-  if (!plan) return redirect(request, guildId, planId, 'missing');
+  if (!plan) return redirect(guildId, planId, 'missing');
+  if (form.get('confirm')?.toString().trim() !== access.guild.name) return redirect(guildId, planId, 'confirm');
+  if (!(await writeState(guildId)).enabled) return redirect(guildId, planId, 'disabled');
+  if (!process.env.DISCORD_BOT_TOKEN) return redirect(guildId, planId, 'missing-token');
+  if (plan.status !== 'draft') return redirect(guildId, planId, 'already-running');
 
-  // Reinforced confirmation: typing the server's name, not a fixed word. It
-  // forces the operator to look at what they are actually pointing at.
-  if ((form.get('confirm') as string | null)?.trim() !== plan.guild.name) {
-    return redirect(request, guildId, planId, 'confirm');
-  }
-  // Checked here, not just in the UI: the window may have closed between
-  // opening the plan page and pressing apply.
-  if (!(await writeState(guildId)).enabled) return redirect(request, guildId, planId, 'disabled');
-  if (!process.env.DISCORD_BOT_TOKEN) return redirect(request, guildId, planId, 'missing-token');
-
-  // Compare-and-swap: the row count IS the guard. A read-then-write check races
-  // a double submit and applies the plan twice.
-  const claimed = await prisma.permissionChangePlan.updateMany({
-    where: { id: planId, guildId, status: 'draft' },
-    data: { status: 'executing' },
-  });
-  if (claimed.count !== 1) return redirect(request, guildId, planId, 'already-running');
-
-  const latest = await prisma.permissionSnapshot.findFirst({
-    where: { guildId },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (latest) {
-    await prisma.permissionSnapshot.create({
-      data: { guildId, version: latest.version, data: toJson(latest.data ?? {}), reason: `pre-apply-plan:${planId}` },
+  let execution: { id: string } | null;
+  try {
+    const targets = new Set<string>();
+    for (const row of plan.operations) {
+      deserialiseOperation(row);
+      const key = row.roleId ? `role:${row.roleId}` : `${row.channelId}:${row.targetId}`;
+      if (targets.has(key)) return NextResponse.json({ error: 'Duplicate targets. Create a new plan.' }, { status: 409 });
+      targets.add(key);
+    }
+    // Capture reality, not the possibly months-old cached snapshot, before claiming the plan.
+    const before = await snapshotGuild(guildId);
+    execution = await prisma.$transaction(async (tx) => {
+      // The guild row serializes claims: different plans for one server must not run together.
+      await tx.discordGuild.update({ where: { id: guildId }, data: { name: before.guild.name, ownerId: before.guild.ownerId } });
+      if (await tx.permissionChangePlan.findFirst({ where: { guildId, status: 'executing' }, select: { id: true } })) return null;
+      const claimed = await tx.permissionChangePlan.updateMany({
+        where: { id: planId, guildId, status: 'draft' }, data: { status: 'executing' },
+      });
+      if (claimed.count !== 1) return null;
+      await tx.permissionSnapshot.create({
+        data: { guildId, version: before.schemaVersion, data: toJson(before), reason: `pre-apply-plan:${planId}` },
+      });
+      return tx.permissionChangeExecution.create({ data: { planId, status: 'running' }, select: { id: true } });
     });
-  }
-
-  const execution = await prisma.permissionChangeExecution.create({
-    data: { planId, status: 'running' },
-    select: { id: true },
-  });
+  } catch (error) { return requestError(error); }
+  if (!execution) return redirect(guildId, planId, 'already-running');
 
   const outcomes: OpOutcome[] = [];
-  let aborted = false;
-
+  const started = Date.now();
+  let abortReason = '';
   for (const row of plan.operations) {
-    if (!row.included) {
-      outcomes.push({ operationId: row.id, status: 'skipped-noop', detail: 'excluded from the plan' });
-      continue;
-    }
+    let live: Live | null = null;
+    let attempted = false;
     const operation = deserialiseOperation(row);
-
+    let outcome: OpOutcome = { operationId: row.id, status: 'failed' };
     try {
-      const live = await readLive(guildId, operation);
-      if (!live) {
-        outcomes.push({ operationId: row.id, status: 'failed', detail: 'target no longer exists' });
-        continue;
-      }
-
-      // Lost update: the plan's recorded `before` is compared against reality
-      // before writing. There is no ETag on these endpoints, so a TOCTOU window
-      // remains — it is narrowed by reading per operation, not claimed away.
-      const drifted =
-        (live.allow & operation.touched) !== (operation.expectedAllow & operation.touched) ||
-        (live.deny & operation.touched) !== (operation.expectedDeny & operation.touched);
-      if (drifted) {
-        outcomes.push({
-          operationId: row.id,
-          status: 'skipped-conflict',
-          liveBeforeAllow: fromBits(live.allow),
-          liveBeforeDeny: fromBits(live.deny),
-          detail: 'changed on Discord since this plan was created',
-        });
-        continue;
-      }
-
-      const nextAllow = applyMask(live.allow, operation.touched, operation.nextAllow);
-      const nextDeny = applyMask(live.deny, operation.touched, operation.nextDeny);
-      assertOnlyTouched(live.allow, nextAllow, operation.touched);
-      assertOnlyTouched(live.deny, nextDeny, operation.touched);
-
-      const unchanged =
-        operation.kind !== 'delete-channel-overwrite' && nextAllow === live.allow && nextDeny === live.deny;
-      if (unchanged) {
-        outcomes.push({ operationId: row.id, status: 'skipped-noop' });
-        continue;
-      }
-
-      const reason = `D-View plan ${planId} by ${session.user.username}${plan.reason ? `: ${plan.reason}` : ''}`;
-
-      if (operation.kind === 'set-role-permissions') {
-        await discord(`/guilds/${guildId}/roles/${operation.roleId}`, {
-          method: 'PATCH',
-          body: { permissions: fromBits(nextAllow) },
-          auditLogReason: reason,
-        });
-      } else if (operation.kind === 'delete-channel-overwrite') {
-        await discord(`/channels/${operation.channelId}/permissions/${operation.targetId}`, {
-          method: 'DELETE',
-          auditLogReason: reason,
-        });
+      if (abortReason || !row.included) {
+        outcome = { operationId: row.id, status: abortReason ? 'failed' : 'skipped-noop',
+          detail: abortReason || 'excluded from the plan' };
+      } else if (Date.now() - started > EXECUTION_DEADLINE_MS || !(await writeState(guildId)).enabled ||
+        !(await authorizeGuild(session, guildId))) {
+        abortReason = 'Stopped: execution deadline, write lock or authorization changed.';
+        outcome.detail = abortReason;
       } else {
-        await discord(`/channels/${operation.channelId}/permissions/${operation.targetId}`, {
-          method: 'PUT',
-          body: {
-            type: operation.targetType === 'member' ? 1 : 0,
-            allow: fromBits(nextAllow),
-            deny: fromBits(nextDeny),
-          },
-          auditLogReason: reason,
-        });
+        live = await readLive(guildId, operation);
+        if (!live) {
+          outcome.detail = 'target no longer exists';
+        } else {
+          outcome.liveBeforeAllow = fromBits(live.allow);
+          outcome.liveBeforeDeny = fromBits(live.deny);
+          outcome.liveBeforeExists = live.exists;
+          const drifted = (live.allow & operation.touched) !== (operation.expectedAllow & operation.touched) ||
+            (live.deny & operation.touched) !== (operation.expectedDeny & operation.touched);
+          if (drifted) {
+            outcome.status = 'skipped-conflict';
+            outcome.detail = 'changed on Discord since this plan was created';
+          } else {
+            const nextAllow = applyMask(live.allow, operation.touched, operation.nextAllow);
+            const nextDeny = applyMask(live.deny, operation.touched, operation.nextDeny);
+            assertOnlyTouched(live.allow, nextAllow, operation.touched);
+            assertOnlyTouched(live.deny, nextDeny, operation.touched);
+            const deletion = operation.kind === 'delete-channel-overwrite';
+            const remove = deletion && nextAllow === 0n && nextDeny === 0n;
+            const unchanged = nextAllow === live.allow && nextDeny === live.deny &&
+              (operation.kind === 'set-role-permissions' || (remove ? !live.exists : live.exists));
+            if (unchanged) {
+              outcome.status = 'skipped-noop';
+            } else {
+              const reason = `D-View plan ${planId} by ${session.user.id}${plan.reason ? `: ${plan.reason}` : ''}`;
+              // Record before sending: a crash must leave evidence of a potentially landed write.
+              await prisma.permissionChangeOperationResult.upsert({
+                where: { executionId_operationId: { executionId: execution.id, operationId: row.id } },
+                create: { ...outcome, status: 'unknown', executionId: execution.id },
+                update: { ...outcome, status: 'unknown' },
+              });
+              if (Date.now() - started > EXECUTION_DEADLINE_MS) throw new Error('Execution deadline expired.');
+              const [authorized, current] = await Promise.all([
+                authorizeGuild(session, guildId),
+                prisma.permissionChangeExecution.findUnique({ where: { id: execution.id }, select: { status: true } }),
+              ]);
+              const state = await writeState(guildId);
+              if (!authorized || session.expiresAt <= Date.now() || !state.enabled || (state.until && state.until.getTime() <= Date.now()) ||
+                current?.status !== 'running' || Date.now() - started > EXECUTION_DEADLINE_MS) {
+                abortReason = 'Execution stopped before writing: authorization, write lock or execution changed.';
+                throw new Error(abortReason);
+              }
+              attempted = true;
+              if (operation.kind === 'set-role-permissions') {
+                await discord(`/guilds/${guildId}/roles/${operation.roleId}`, {
+                  method: 'PATCH', body: { permissions: fromBits(nextAllow) }, auditLogReason: reason,
+                });
+              } else if (remove) {
+                await discord(`/channels/${operation.channelId}/permissions/${operation.targetId}`, {
+                  method: 'DELETE', auditLogReason: reason,
+                });
+              } else {
+                // DELETE would also remove concurrently added, untouched bits. Keep them with PUT.
+                await discord(`/channels/${operation.channelId}/permissions/${operation.targetId}`, {
+                  method: 'PUT', body: { type: operation.targetType === 'member' ? 1 : 0,
+                    allow: fromBits(nextAllow), deny: fromBits(nextDeny) }, auditLogReason: reason,
+                });
+              }
+              outcome.status = 'applied';
+              outcome.liveAfterAllow = fromBits(nextAllow);
+              outcome.liveAfterDeny = fromBits(nextDeny);
+              outcome.liveAfterExists = !remove;
+              await spaceWrites();
+            }
+          }
+        }
       }
-
-      outcomes.push({
-        operationId: row.id,
-        status: 'applied',
-        liveBeforeAllow: fromBits(live.allow),
-        liveBeforeDeny: fromBits(live.deny),
-        liveAfterAllow: fromBits(nextAllow),
-        liveAfterDeny: fromBits(nextDeny),
-      });
-      await spaceWrites();
     } catch (error) {
       if (error instanceof DiscordGlobalRateLimit) {
-        // Continuing would push us toward Discord's 10k-invalid-requests IP ban.
-        outcomes.push({ operationId: row.id, status: 'unknown', detail: error.message });
-        aborted = true;
-        break;
+        abortReason = 'Discord global rate limit: remaining operations were not attempted.';
+        outcome.detail = abortReason;
+      } else if (error instanceof DiscordError) {
+        outcome.status = attempted && error.status >= 500 ? 'unknown' : 'failed';
+        outcome.httpStatus = error.status;
+        if (error.code !== undefined) outcome.discordCode = error.code;
+        outcome.detail = error.status === 403 ? 'Discord refused the bot permissions or role hierarchy.' : error.detail;
+      } else {
+        outcome.status = attempted ? 'unknown' : 'failed';
+        outcome.detail = attempted ? 'Write response unavailable; verifying live state.' : abortReason || 'Cannot validate live target.';
       }
-      if (error instanceof DiscordError) {
-        const hierarchy = error.status === 403;
-        outcomes.push({
-          operationId: row.id,
-          status: 'failed',
-          httpStatus: error.status,
-          ...(error.code !== undefined ? { discordCode: error.code } : {}),
-          detail: hierarchy
-            ? 'Discord refused: a bot can only grant or deny permissions it holds itself, and cannot edit a role above its own.'
-            : error.detail,
-        });
-        continue;
-      }
-      // A network failure gives no evidence either way, so the write is recorded
-      // as unknown and reclassified by the verification pass below. Guessing here
-      // would let a rollback invert an operation that never happened.
-      outcomes.push({
-        operationId: row.id,
-        status: 'unknown',
-        detail: error instanceof Error ? error.message : String(error),
-      });
     }
-  }
 
-  // Verification pass: re-read every target we are unsure about.
-  for (const outcome of outcomes) {
-    if (outcome.status !== 'unknown') continue;
-    const row = plan.operations.find((candidate) => candidate.id === outcome.operationId);
-    if (!row) continue;
-    const operation = deserialiseOperation(row);
+    if (outcome.status === 'unknown' && live) {
+      try {
+        const observed = await readLive(guildId, operation);
+        if (observed) {
+          const removing = operation.kind === 'delete-channel-overwrite' &&
+            applyMask(live.allow, operation.touched, operation.nextAllow) === 0n &&
+            applyMask(live.deny, operation.touched, operation.nextDeny) === 0n;
+          const landed = (removing ? !observed.exists : observed.exists) &&
+            (observed.allow & operation.touched) === (operation.nextAllow & operation.touched) &&
+            (observed.deny & operation.touched) === (operation.nextDeny & operation.touched);
+          outcome.status = landed ? 'applied' : 'unknown';
+          outcome.liveAfterAllow = fromBits(observed.allow);
+          outcome.liveAfterDeny = fromBits(observed.deny);
+          outcome.liveAfterExists = observed.exists;
+        }
+      } catch { /* Still unknown: do not make rollback invert a guessed write. */ }
+    }
+    // Persist each result promptly; a process exit must not erase evidence of previous writes.
     try {
-      const live = await readLive(guildId, operation);
-      if (!live) continue;
-      const expectedAllow = applyMask(operation.expectedAllow, operation.touched, operation.nextAllow);
-      const expectedDeny = applyMask(operation.expectedDeny, operation.touched, operation.nextDeny);
-      const landed =
-        (live.allow & operation.touched) === (expectedAllow & operation.touched) &&
-        (live.deny & operation.touched) === (expectedDeny & operation.touched);
-      outcome.status = landed ? 'applied' : 'failed';
-      outcome.liveAfterAllow = fromBits(live.allow);
-      outcome.liveAfterDeny = fromBits(live.deny);
-    } catch {
-      // Still unknown. Better to say so than to guess.
-    }
+      await prisma.$transaction(async (tx) => {
+        // Serialize late responses with recovery; neither side may lose evidence of an applied operation.
+        const running = await tx.permissionChangeExecution.updateMany({
+          where: { id: execution.id, status: 'running' }, data: { status: 'running' },
+        });
+        await tx.permissionChangeOperationResult.upsert({
+          where: { executionId_operationId: { executionId: execution.id, operationId: row.id } },
+          create: { ...outcome, executionId: execution.id }, update: outcome,
+        });
+        if (running.count === 0 && outcome.status === 'applied') await tx.permissionChangePlan.updateMany({
+          where: { id: planId, guildId, status: 'failed' }, data: { status: 'partial' },
+        });
+      });
+    } catch (error) { return requestError(error); }
+    outcomes.push(outcome);
   }
-
-  await prisma.permissionChangeOperationResult.createMany({
-    data: outcomes.map((outcome) => ({ ...outcome, executionId: execution.id })),
-  });
-
   const applied = outcomes.filter((outcome) => outcome.status === 'applied').length;
-  const failed = outcomes.filter((outcome) => outcome.status === 'failed' || outcome.status === 'unknown').length;
-  const planStatus = failed === 0 ? 'applied' : applied > 0 || aborted ? 'partial' : 'failed';
-
-  await prisma.permissionChangeExecution.update({
-    where: { id: execution.id },
-    data: { status: planStatus, finishedAt: new Date() },
-  });
-  await prisma.permissionChangePlan.update({ where: { id: planId }, data: { status: planStatus } });
-
-  return redirect(request, guildId, planId, planStatus);
+  const failed = outcomes.filter((outcome) => ['failed', 'unknown', 'skipped-conflict'].includes(outcome.status)).length;
+  const status = failed === 0 ? 'applied' : applied > 0 ? 'partial' : 'failed';
+  try {
+    await prisma.$transaction(async (tx) => {
+      const active = await tx.permissionChangeExecution.updateMany({
+        where: { id: execution.id, status: 'running' }, data: { status, finishedAt: new Date() },
+      });
+      if (active.count === 1) await tx.permissionChangePlan.updateMany({
+        where: { id: planId, guildId, status: 'executing' }, data: { status },
+      });
+    });
+  } catch (error) { return requestError(error); }
+  return redirect(guildId, planId, status);
 }

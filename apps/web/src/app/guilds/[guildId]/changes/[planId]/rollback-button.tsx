@@ -23,14 +23,15 @@ export function RollbackButton({
   async function create() {
     setBusy(true);
     setError(null);
-    const response = await fetch(`/api/guilds/${guildId}/plans/${planId}/rollback`, { method: 'POST' });
-    const payload = (await response.json()) as { planId?: string; error?: string };
-    if (!response.ok || !payload.planId) {
-      setError(payload.error ?? 'Failed');
+    try {
+      const response = await fetch(`/api/guilds/${guildId}/plans/${planId}/rollback`, { method: 'POST' });
+      const payload = (await response.json()) as { planId?: string; error?: string };
+      if (!response.ok || !payload.planId) throw new Error(payload.error ?? 'Failed');
+      router.push(`/guilds/${guildId}/changes/${payload.planId}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
       setBusy(false);
-      return;
     }
-    router.push(`/guilds/${guildId}/changes/${payload.planId}`);
   }
 
   return (
@@ -38,6 +39,7 @@ export function RollbackButton({
       <Button onClick={create} disabled={busy}>
         {busy ? pending : label}
       </Button>
+      <p role="status" className="sr-only">{busy ? pending : ''}</p>
       {error ? <Notice tone="critical">{error}</Notice> : null}
     </div>
   );

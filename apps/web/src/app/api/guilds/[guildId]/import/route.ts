@@ -1,22 +1,19 @@
 import { NextResponse } from 'next/server';
 import { diffSnapshots, indexSnapshot } from '@dpd/permission-engine';
 import { fromBits, permissionSnapshotSchema, snapshotVersionOf, SNAPSHOT_SCHEMA_VERSION, type PermissionSnapshot } from '@dpd/shared';
-import { canReadGuild, getSession } from '@/lib/session';
-import { loadBotContext, loadSnapshot, warningsFor } from '@/lib/plans';
+import { guildAccess } from '@/lib/guild';
+import { invalidOrigin, readBody, requestError } from '@/lib/request';
+import { loadBotContext, loadSnapshot, resolveEdits, warningsFor, type PlanEdit } from '@/lib/plans';
 
 /** A guild snapshot is a few hundred KB; anything far larger is not a snapshot. */
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  const session = await getSession();
-  const allowed = session?.guilds.some((guild) => guild.id === guildId && canReadGuild(guild));
-  if (!allowed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: 'Import is too large to be a guild snapshot.' }, { status: 413 });
-  }
+  if (invalidOrigin(request)) return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+  if (!(await guildAccess(guildId))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let raw: string;
+  try { raw = await readBody(request, MAX_BODY_BYTES); } catch (error) { return requestError(error); }
 
   const loaded = await loadSnapshot(guildId);
   if (loaded.status === 'none') return NextResponse.json({ error: 'No current snapshot. Sync this guild first.' }, { status: 404 });
@@ -59,7 +56,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
 
   try {
     const operations = diffSnapshots(loaded.snapshot, candidate);
+    if (operations.length > 500) return NextResponse.json({ error: 'Import has more than 500 changes. Split it into smaller plans.' }, { status: 400 });
+    const edits: PlanEdit[] = operations.map((op) => op.kind === 'set-role-permissions'
+      ? { kind: 'role', roleId: op.roleId!, touched: fromBits(op.touched), nextAllow: fromBits(op.nextAllow) }
+      : op.kind === 'delete-channel-overwrite'
+        ? { kind: 'delete-overwrite', channelId: op.channelId!, targetId: op.targetId!, targetType: op.targetType! }
+        : { kind: 'overwrite', channelId: op.channelId!, targetId: op.targetId!, targetType: op.targetType!,
+            touched: fromBits(op.touched), nextAllow: fromBits(op.nextAllow), nextDeny: fromBits(op.nextDeny) });
+    await resolveEdits(guildId, edits, loaded.snapshot);
     const bot = await loadBotContext(guildId, indexSnapshot(loaded.snapshot));
+    if (!bot) return NextResponse.json({ error: 'Cannot verify bot capabilities.' }, { status: 502 });
     const warnings = warningsFor(operations, loaded.snapshot, bot);
     return NextResponse.json({
       status: 'validated',

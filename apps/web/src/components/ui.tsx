@@ -12,7 +12,7 @@ import type { ComponentProps, ReactNode } from 'react';
 export const cx = (...parts: unknown[]) => parts.filter((part) => typeof part === 'string' && part).join(' ');
 
 export function Card({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cx('rounded-xl border border-line bg-surface-raised', className)} {...props} />;
+  return <div className={cx('min-w-0 rounded-xl border border-line bg-surface-raised', className)} {...props} />;
 }
 
 export function CardBody({ className, ...props }: ComponentProps<'div'>) {
@@ -33,12 +33,14 @@ const buttonTones: Record<ButtonTone, string> = {
 };
 
 export function Button({
+  type = 'button',
   tone = 'default',
   className,
   ...props
 }: ComponentProps<'button'> & { tone?: ButtonTone }) {
   return (
     <button
+      type={type}
       className={cx(
         'inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
         buttonTones[tone],
@@ -121,10 +123,12 @@ export function Notice({
   tone = 'info',
   title,
   children,
+  role = tone === 'critical' ? 'alert' : tone === 'allow' ? 'status' : undefined,
 }: {
   tone?: Tone;
   title?: ReactNode;
   children?: ReactNode;
+  role?: ComponentProps<'div'>['role'];
 }) {
   const border: Record<string, string> = {
     critical: 'border-critical/40 bg-critical-dim',
@@ -137,7 +141,7 @@ export function Notice({
     brand: 'border-brand/40 bg-brand/10',
   };
   return (
-    <div className={cx('rounded-lg border p-3 text-sm', border[tone])}>
+    <div role={role} className={cx('rounded-lg border p-3 text-sm break-words', border[tone])}>
       {title ? <p className="font-semibold">{title}</p> : null}
       {children ? <div className={cx('text-ink-muted', title && 'mt-1')}>{children}</div> : null}
     </div>

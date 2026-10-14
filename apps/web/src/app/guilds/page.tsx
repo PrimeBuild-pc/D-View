@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { prisma } from '@dpd/database';
 import { t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
-import { canReadGuild, getSession } from '@/lib/session';
+import { getSession } from '@/lib/session';
+import { readableGuilds } from '@/lib/guild';
 import { Badge, Button, Card, CardBody, EmptyState, LinkButton, Notice } from '@/components/ui';
 import { IconRefresh } from '@/components/icons';
 import { RelativeTime } from '@/components/relative-time';
@@ -31,7 +32,7 @@ export default async function GuildsPage({
     );
   }
 
-  const readable = session.guilds.filter(canReadGuild);
+  const readable = await readableGuilds(session);
   // Sync state per server, so "open" is no longer a coin flip into an empty page.
   const synced = await prisma.discordGuild.findMany({
     where: { id: { in: readable.map((guild) => guild.id) } },

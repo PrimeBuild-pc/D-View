@@ -202,6 +202,7 @@ export function Explorer({
               {copy.explorer.roles}
             </p>
             <label className="relative block">
+              <span className="sr-only">{copy.explorer.searchRoles}</span>
               <IconSearch className="absolute top-2.5 left-2.5 text-ink-faint" />
               <Input
                 value={roleQuery}
@@ -218,6 +219,7 @@ export function Explorer({
                     key={role.id}
                     type="button"
                     onClick={() => setRoleId(role.id)}
+                    aria-pressed={role.id === roleId}
                     className={cx(
                       'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm',
                       role.id === roleId ? 'bg-brand/20 text-ink' : 'text-ink-muted hover:bg-surface-overlay',
@@ -244,6 +246,7 @@ export function Explorer({
         <Card className="lg:sticky lg:top-20 lg:self-start">
           <CardBody className="space-y-3 p-3">
             <label className="relative block">
+              <span className="sr-only">{copy.explorer.searchChannels}</span>
               <IconSearch className="absolute top-2.5 left-2.5 text-ink-faint" />
               <Input
                 value={channelQuery}
@@ -266,6 +269,7 @@ export function Explorer({
                   key={value}
                   type="button"
                   onClick={() => setFilter(value)}
+                  aria-pressed={filter === value}
                   className={cx(
                     'rounded-full px-2.5 py-1 text-[11px]',
                     filter === value ? 'bg-brand text-white' : 'bg-surface-overlay text-ink-muted',
@@ -303,6 +307,7 @@ export function Explorer({
                               key={child.channel.id}
                               type="button"
                               onClick={() => setChannelId(child.channel.id)}
+                              aria-pressed={child.channel.id === channelId}
                               className={cx(
                                 'defer-paint flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-1.5 pl-4 text-left text-sm',
                                 child.channel.id === channelId
@@ -343,7 +348,7 @@ export function Explorer({
         </Card>
 
         {/* Permissions --------------------------------------------------- */}
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {!selected || !explanation || !selectedKind ? (
             <Card>
               <CardBody className="py-16 text-center">
@@ -357,7 +362,7 @@ export function Explorer({
                 <CardBody className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <ChannelIcon kind={selectedKind} />
-                    <h2 className="text-lg font-semibold">{selected.name}</h2>
+                    <h2 className="min-w-0 text-lg font-semibold break-words">{selected.name}</h2>
                     <Badge tone={channelSyncState(index, selected.id) === 'desynced' ? 'info' : 'neutral'}>
                       {channelSyncState(index, selected.id) === 'desynced'
                         ? copy.badge.override
@@ -435,8 +440,8 @@ export function Explorer({
                   count: pending.length,
                 })}
               </p>
-              <div className="flex items-center gap-2">
-                <Button onClick={() => setDrafts({})} tone="ghost">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={() => setDrafts({})} tone="ghost" disabled={submitting}>
                   {copy.changes.discard}
                 </Button>
                 <Button onClick={createPlan} tone="primary" disabled={submitting}>
@@ -478,19 +483,20 @@ function PermissionRowView({
 
   return (
     <li className="border-b border-line/60 last:border-0">
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left text-sm"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm break-words"
         >
           {granted ? (
             <IconCheck className="text-allow" />
           ) : (
             <IconCross className="text-deny" />
           )}
-          <span className={granted ? 'text-ink' : 'text-ink-faint'}>{label}</span>
+          <span className={cx('min-w-0', granted ? 'text-ink' : 'text-ink-faint')}>{label}</span>
+          <span className="sr-only">{granted ? copy.explorer.allowedBy : copy.explorer.deniedBy}</span>
         </button>
 
         {editable ? (
@@ -502,8 +508,9 @@ function PermissionRowView({
                 onClick={() => onChange(option)}
                 aria-pressed={state === option}
                 title={option}
+                aria-label={`${label}: ${option}`}
                 className={cx(
-                  'px-2 py-1',
+                  'px-2 py-1 focus-visible:-outline-offset-2',
                   state === option
                     ? option === 'allow'
                       ? 'bg-allow-dim text-allow'
@@ -548,7 +555,7 @@ function PermissionRowView({
                     ) : (
                       <IconCross className="mt-0.5 shrink-0 text-deny" />
                     )}
-                    <span className="flex-1">
+                    <span className="min-w-0 flex-1 break-words">
                       <span className="text-ink-muted">{copy.stage[step.stage]}</span>
                       {step.sourceIds.length > 0 ? (
                         <span className="ml-1 text-ink-faint">

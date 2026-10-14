@@ -1,9 +1,17 @@
 # Discord Permission Dashboard — Product Requirements
 
+> Historical design brief, not installation instructions or current feature status.
+> OAuth, REST sync, writes and rollback have since been implemented; the initial
+> mock-only slice and deferred UI descriptions below are historical. For current
+> behavior use [implementation status](implementation-plan.md),
+> [security model](security-model.md) and [self-hosting](self-hosting.md).
+
 ## Scope
+
 A Discord bot plus web dashboard for server administrators to inspect, audit, and eventually modify role permissions and role permission overwrites on categories/channels.
 
 ## First-version goals
+
 - Read guilds, roles, categories, text channels, voice channels, role overwrites, member overwrites as read-only exceptions, global role permissions, and Administrator flag.
 - Dashboard login via Discord OAuth in a future milestone; first slice uses local mock authentication/configuration.
 - Role-first dashboard: select a role and inspect effective access through a guild → category → channel tree.
@@ -12,7 +20,9 @@ A Discord bot plus web dashboard for server administrators to inspect, audit, an
 - Initial scale target: ~50 roles, ~100 channels.
 
 ## Base permissions
+
 Base view covers:
+
 - ViewChannel
 - SendMessages
 - ReadMessageHistory
@@ -30,7 +40,9 @@ Base view covers:
 Advanced mode will expose all Discord permissions grouped by category.
 
 ## Modification model
+
 No direct mutation from chat or text request. Every change must become a change plan with:
+
 - proposed operations;
 - per-operation include/exclude;
 - before/after diff;
@@ -39,6 +51,7 @@ No direct mutation from chat or text request. Every change must become a change 
 - final report.
 
 ## Explicitly out of scope for v1
+
 - Member-specific overwrite management. Detect and warn only.
 - Channel creation/deletion/rename.
 - Role creation/deletion/reordering.
@@ -46,12 +59,14 @@ No direct mutation from chat or text request. Every change must become a change 
 - Real Discord OAuth, real bot sync, real mutation, real rollback in the first vertical slice.
 
 ## High-risk rules
+
 - `@everyone` is visible and modifiable later, but requires reinforced confirmation.
 - Administrator must show clear warnings and bypass behavior in simulation.
 - Direct Administrator flag edits require block or reinforced confirmation.
 - Category/channel sync is never automatic.
 
 ## Audit severities
+
 - Info
 - Warning
 - Critical

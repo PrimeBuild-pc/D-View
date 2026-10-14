@@ -9,7 +9,7 @@
 const API = 'https://discord.com/api/v10';
 
 const MAX_ATTEMPTS = 3;
-/** Flat spacing between mutating calls. ponytail: per-bucket tracking via X-RateLimit-Bucket only if plans grow past a few dozen operations. */
+/** shortcut: flat write spacing, use Discord buckets if plans exceed a few dozen operations. */
 export const WRITE_SPACING_MS = 250;
 
 export class DiscordError extends Error {
@@ -64,6 +64,8 @@ export async function discord<T>(path: string, init: DiscordRequest = {}): Promi
       method,
       headers,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (response.status === 429) {
@@ -71,18 +73,22 @@ export async function discord<T>(path: string, init: DiscordRequest = {}): Promi
         retry_after?: number;
         global?: boolean;
       };
-      const retryAfterMs = Math.ceil((payload.retry_after ?? 1) * 1000) + 250;
+      const seconds = typeof payload.retry_after === 'number' && Number.isFinite(payload.retry_after)
+        ? Math.max(0, payload.retry_after) : 1;
+      const retryAfterMs = Math.ceil(seconds * 1000) + 250;
       if (payload.global || response.headers.get('x-ratelimit-scope') === 'global') {
         throw new DiscordGlobalRateLimit(retryAfterMs);
       }
-      if (attempt >= MAX_ATTEMPTS) {
+      // Replaying a mutation after waiting would reuse stale live-state and authorization checks.
+      if (method !== 'GET' || attempt >= MAX_ATTEMPTS || retryAfterMs > 10_000) {
         throw new DiscordError(429, path, undefined, `rate limited after ${attempt} attempts`);
       }
       await sleep(retryAfterMs);
       continue;
     }
 
-    if (response.status >= 500 && attempt < MAX_ATTEMPTS) {
+    // A mutating 5xx may already have landed: verify it, never blindly replay it.
+    if (method === 'GET' && response.status >= 500 && attempt < MAX_ATTEMPTS) {
       await sleep(attempt * 500);
       continue;
     }
@@ -128,6 +134,7 @@ export interface DiscordOverwritePayload {
 
 export interface DiscordChannelPayload {
   id: string;
+  guild_id?: string;
   name: string;
   type: number;
   position: number;
