@@ -1,5 +1,5 @@
 import { prisma } from '@dpd/database';
-import { t } from '@/lib/i18n';
+import { fill, t } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { writesForcedAlways, writesLocked } from '@/lib/writes';
 import { appVersion } from '@/lib/version';
@@ -33,9 +33,9 @@ export default async function SetupPage() {
   const clientId = process.env.DISCORD_CLIENT_ID ?? '';
   const checks: Check[] = [];
   try {
-    checks.push({ label: 'APP_URL', level: 'ok', detail: appUrl().origin });
+    checks.push({ label: copy.setup.appUrl, level: 'ok', detail: appUrl().origin });
   } catch {
-    checks.push({ label: 'APP_URL', level: 'problem', help: 'Set APP_URL to the public HTTPS origin (HTTP is allowed only on loopback).' });
+    checks.push({ label: copy.setup.appUrl, level: 'problem', help: copy.setup.appUrlHelp });
   }
 
   checks.push({
@@ -44,7 +44,7 @@ export default async function SetupPage() {
     help: copy.setup.authSecretHelp,
   });
 
-  const session = await getSession();
+  const session = await getSession().catch(() => null);
   let database: Check = { label: copy.setup.database, level: 'problem', help: copy.setup.databaseHelp };
   if (session) {
     try {
@@ -80,7 +80,7 @@ export default async function SetupPage() {
         const me = (await response.json()) as { username: string };
         botCheck = { label: copy.setup.botToken, level: 'ok', detail: me.username };
       } else {
-        botCheck.detail = `HTTP ${response.status}`;
+        botCheck.detail = fill(copy.setup.httpStatus, { status: response.status });
       }
     } catch {
       botCheck.detail = copy.setup.problem;
@@ -117,7 +117,7 @@ export default async function SetupPage() {
       <div>
         <h1 className="text-xl font-semibold">{copy.setup.title}</h1>
         <p className="mt-1 text-sm text-ink-muted">{copy.setup.help}</p>
-        <p className="mt-1 text-xs text-ink-faint">D-View v{appVersion()}</p>
+        <p className="mt-1 text-xs text-ink-faint">{fill(copy.setup.version, { version: appVersion() })}</p>
       </div>
 
       <Card>

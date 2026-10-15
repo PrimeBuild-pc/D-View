@@ -46,7 +46,11 @@ and communicates with Discord. See [Privacy](PRIVACY.md).
 - **History:** snapshots, comparisons, export and validated import into a plan.
 - **Changes:** review masked permission edits, apply with confirmation, inspect
   per-operation results, and generate a reviewed rollback plan.
-- **Languages:** English, Italiano, Deutsch, Français, Español, 中文 and Русский.
+- **Languages:** English, Italian, German, French, Spanish, Chinese and Russian.
+  The language selector saves a preference cookie for one year. On a first visit,
+  browser language preferences (including regions and quality weights) select a
+  supported language; unsupported preferences fall back to English. Documentation
+  and code comments are in English; server/user content is never translated.
 
 Category overwrites are not an extra inheritance layer: Discord copies them onto
 synced children. Role allows/denies are aggregated, not applied in role order.

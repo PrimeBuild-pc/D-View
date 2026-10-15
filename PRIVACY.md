@@ -28,9 +28,16 @@ The project authors have no access to any instance they do not personally run.
 - Your Discord user ID, username, and avatar hash
 - The list of servers you belong to, with your permission integer in each
 
-This is stored in a **signed cookie in your own browser** for up to 7 days. It is
-not written to the database. The OAuth access token is discarded immediately
-after the sign-in exchange and never stored.
+Session data, including the OAuth access token used to recheck server access,
+is stored in an **encrypted, httpOnly cookie in your own browser**, not in the
+database. Sessions last at most 7 days and are bounded by OAuth token expiry.
+The cookie uses SameSite=Lax and Secure on HTTPS. Signing out clears it;
+rotating the instance's session secret invalidates existing sessions.
+
+**Interface language:** the `dpd_lang` preference cookie stores only your selected
+language for one year. Without a supported saved preference, the interface uses
+your browser's `Accept-Language` header, falling back to English. This preference
+is separate from Discord member data and is not written to the database.
 
 **When a server is synced (read through the bot):**
 
@@ -73,7 +80,9 @@ Data stays in the operator's database until they delete it. Note that a snapshot
 is written on every sync and before every applied change, so these accumulate;
 nothing prunes them automatically.
 
-To delete everything, drop the database (`docker compose down -v`).
+Deleting the database or its volume permanently removes stored data. This is
+an operator-only destructive action, not a normal shutdown or upgrade step;
+verify the instance and backups first. See the [backup and restore guide](docs/self-hosting.md#backups).
 
 To end your own session, sign out — this clears the cookie.
 

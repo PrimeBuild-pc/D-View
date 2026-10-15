@@ -7,7 +7,6 @@ import {
   VIEW_CHANNEL,
   channelKind,
   fromBits,
-  permissionLabel,
   toBits,
   type Bitfield,
   type PermissionSnapshot,
@@ -21,11 +20,10 @@ import {
   type PermissionStep,
   type PermissionSubject,
 } from '@dpd/permission-engine';
-import type { Dict } from '@/lib/i18n';
-import { fill } from '@/lib/i18n';
+import type { Dict, Lang } from '@/lib/i18n';
+import { localizedError, plural } from '@/lib/i18n';
 import {
   groupsForKind,
-  groupLabels,
   overwriteState,
   permissionRows,
   verdicts,
@@ -52,6 +50,7 @@ export interface ExplorerProps {
   guildId: string;
   baseSnapshotId: string;
   canWrite: boolean;
+  lang?: Lang;
   initialRoleId?: string;
   initialChannelId?: string;
 }
@@ -62,6 +61,7 @@ export function Explorer({
   guildId,
   baseSnapshotId,
   canWrite,
+  lang = 'en',
   initialRoleId,
   initialChannelId,
 }: ExplorerProps) {
@@ -184,10 +184,10 @@ export function Explorer({
         }),
       });
       const payload = (await response.json()) as { planId?: string; error?: string };
-      if (!response.ok || !payload.planId) throw new Error(payload.error ?? 'Failed');
+      if (!response.ok || !payload.planId) throw new Error(payload.error ?? 'REQUEST_FAILED');
       router.push(`/guilds/${guildId}/changes/${payload.planId}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(localizedError(copy, cause));
       setSubmitting(false);
     }
   }
@@ -317,6 +317,9 @@ export function Explorer({
                             >
                               <ChannelIcon
                                 kind={child.kind}
+                                aria-hidden={false}
+                                role="img"
+                                aria-label={copy.channelKinds[child.kind]}
                                 className={visible ? 'text-ink-muted' : 'text-ink-faint'}
                               />
                               <span className={cx('truncate', !visible && 'line-through opacity-60')}>
@@ -361,7 +364,7 @@ export function Explorer({
               <Card>
                 <CardBody className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <ChannelIcon kind={selectedKind} />
+                    <ChannelIcon kind={selectedKind} aria-hidden={false} role="img" aria-label={copy.channelKinds[selectedKind]} />
                     <h2 className="min-w-0 text-lg font-semibold break-words">{selected.name}</h2>
                     <Badge tone={channelSyncState(index, selected.id) === 'desynced' ? 'info' : 'neutral'}>
                       {channelSyncState(index, selected.id) === 'desynced'
@@ -395,7 +398,7 @@ export function Explorer({
               </div>
 
               {groupsForKind(selectedKind).map((group) => {
-                const rows = permissionRows(group).filter(
+                const rows = permissionRows(group, copy).filter(
                   (row) => showUnset || (explanation.raw & row.bit) === row.bit || stateFor(row.bit) !== 'inherit',
                 );
                 if (rows.length === 0) return null;
@@ -403,7 +406,7 @@ export function Explorer({
                   <Card key={group}>
                     <CardBody className="p-0">
                       <p className="border-b border-line px-4 py-2 text-xs font-semibold tracking-wide text-ink-faint uppercase">
-                        {groupLabels[group]}
+                        {copy.permissionGroups[group]}
                       </p>
                       <ul>
                         {rows.map((row) => (
@@ -436,9 +439,7 @@ export function Explorer({
           <Card className="border-brand/50 shadow-lg">
             <CardBody className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm">
-                {fill(copy.changes.pending.split('|')[pending.length === 1 ? 0 : 1] ?? '', {
-                  count: pending.length,
-                })}
+                {plural(copy.changes.pending, pending.length, {}, lang)}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={() => setDrafts({})} tone="ghost" disabled={submitting}>
@@ -507,8 +508,8 @@ function PermissionRowView({
                 type="button"
                 onClick={() => onChange(option)}
                 aria-pressed={state === option}
-                title={option}
-                aria-label={`${label}: ${option}`}
+                title={copy.common[option]}
+                aria-label={`${label}: ${copy.common[option]}`}
                 className={cx(
                   'px-2 py-1 focus-visible:-outline-offset-2',
                   state === option
@@ -578,5 +579,3 @@ function PermissionRowView({
     </li>
   );
 }
-
-export { permissionLabel };

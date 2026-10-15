@@ -113,7 +113,7 @@ rollback is `nextAllow = observedAllow & touched`.
 
 ## Audit
 
-Ten rules, each emitting a code plus parameters and one of three
+Eleven rules, each emitting a code plus parameters and one of three
 severities. Critical findings sort first — an earlier version emitted
 every Administrator warning before any channel finding and the UI capped
 the list, so on a server with a handful of admin roles every critical

@@ -8,6 +8,7 @@ import ru from './ru';
 
 /** English is the source of truth; every other locale must satisfy its shape. */
 export type Dict = typeof en;
+export { localizedError } from './errors';
 
 export const languages = {
   en: 'English',
@@ -26,24 +27,45 @@ const dictionaries: Record<Lang, Dict> = { en, it, de, fr, es, zh, ru };
 export const LANG_COOKIE = 'dpd_lang';
 
 export function isLang(value: unknown): value is Lang {
-  return typeof value === 'string' && value in languages;
+  return typeof value === 'string' && Object.hasOwn(languages, value);
 }
 
 export function t(lang: Lang): Dict {
-  return dictionaries[lang];
+  return isLang(lang) ? dictionaries[lang] : en;
+}
+
+/** A saved choice wins; otherwise rank valid language ranges by quality. */
+export function negotiateLang(stored: unknown, header = ''): Lang {
+  if (isLang(stored)) return stored;
+  const ranges = header.split(',').map((part, order) => {
+    const [range = '', ...parameters] = part.trim().split(';');
+    const quality = parameters.length === 0 ? '1' : parameters.length === 1
+      ? /^\s*q=(0(?:\.\d{0,3})?|1(?:\.0{0,3})?)\s*$/i.exec(parameters[0]!)?.[1]
+      : undefined;
+    return { range: range.trim().toLowerCase(), quality: quality === undefined ? 0 : Number(quality), order };
+  }).filter(({ range, quality }) => quality > 0 && /^(?:\*|[a-z]{1,8}(?:-[a-z0-9]{1,8})*)$/.test(range))
+    .sort((a, b) => b.quality - a.quality || a.order - b.order);
+  for (const { range } of ranges) {
+    if (range === '*') return 'en';
+    const base = range.split('-')[0];
+    if (isLang(base)) return base;
+  }
+  return 'en';
 }
 
 /** Interpolate `{name}` placeholders. */
 export function fill(template: string, params: Record<string, string | number> = {}): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
-    key in params ? String(params[key]) : match,
+    Object.hasOwn(params, key) ? String(params[key]) : match,
   );
 }
 
-/** `one|many` plural forms, enough for the two counters that need it. */
-export function plural(template: string, count: number, params: Record<string, string | number> = {}): string {
-  const [one = template, many = one] = template.split('|');
-  return fill(count === 1 ? one : many, { ...params, count });
+/** `one|other`, or Russian `one|few|many`, selected by the locale's rules. */
+export function plural(template: string, count: number, params: Record<string, string | number> = {}, lang: Lang = 'en'): string {
+  const forms = template.split('|');
+  const category = new Intl.PluralRules(lang).select(count);
+  const index = category === 'one' ? 0 : forms.length === 3 && category === 'few' ? 1 : forms.length - 1;
+  return fill(forms[index] ?? template, { ...params, count });
 }
 
 /**

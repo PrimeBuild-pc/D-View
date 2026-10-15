@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { auditSnapshot } from '@dpd/permission-engine';
 import { channelKind, type PermissionSnapshot } from '@dpd/shared';
-import { t, fill, type Dict, type Lang } from '@/lib/i18n';
+import { t, localizedError, type Dict, type Lang } from '@/lib/i18n';
+import { auditText } from '@/lib/permissions-ui';
 import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { loadSnapshot } from '@/lib/plans';
@@ -46,7 +47,7 @@ export default async function OverviewPage({
       {query.sync === 'ok' ? <Notice tone="allow">{copy.sync.ok}</Notice> : null}
       {query.sync === 'failed' ? (
         <Notice tone="critical" title={copy.sync.failed}>
-          {query.detail ? <code className="text-xs break-all">{query.detail}</code> : null}
+          {query.detail ? <code className="text-xs break-all">{localizedError(copy, query.detail)}</code> : null}
         </Notice>
       ) : null}
       {query.sync === 'missing-token' ? (
@@ -121,7 +122,7 @@ function OverviewBody({
                     {finding.severity === 'critical' ? copy.audit.critical : copy.audit.warning}
                   </Badge>
                   <span className="text-ink-muted">
-                    {fill(copy.audit[finding.code], finding.params)}
+                    {auditText(copy, finding, lang)}
                   </span>
                 </li>
               ))}

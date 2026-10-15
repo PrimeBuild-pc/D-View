@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@dpd/database';
-import { t, fill } from '@/lib/i18n';
+import { t, plural } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { Badge, Card, CardBody, EmptyState, LinkButton } from '@/components/ui';
@@ -49,11 +49,7 @@ export default async function ChangesPage({ params }: { params: Promise<{ guildI
                     {/* A failed plan used to look identical to an applied one. */}
                     <Badge tone={planStatusTone(plan.status)}>{planStatusLabel(plan.status, copy)}</Badge>
                     <span className="text-sm">
-                      {fill(
-                        copy.changes.operations.split('|')[plan._count.operations === 1 ? 0 : 1] ??
-                          copy.changes.operations,
-                        { count: plan._count.operations },
-                      )}
+                      {plural(copy.changes.operations, plan._count.operations, {}, lang)}
                     </span>
                     {plan.reason ? (
                       <span className="truncate text-sm text-ink-muted">{plan.reason}</span>

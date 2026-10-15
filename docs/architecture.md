@@ -52,6 +52,23 @@ Inputs are normalised snapshots; outputs are bitfields plus ordered
 explanation steps. The engine emits **codes**, never prose — otherwise the
 two most content-heavy panels in the product could not be translated.
 
+### Localization
+
+The seven dictionaries in `apps/web/src/lib/i18n` share the English key shape;
+UI tests verify exact keys and interpolation placeholders in every plural form.
+The `dpd_lang` preference cookie takes precedence over quality-ranked
+`Accept-Language` ranges, with regional tags mapped to supported base languages
+and English as the fallback. The language action persists that choice across
+navigation. The root layout sets `html lang`, localized metadata and client error
+boundary context from the same request locale.
+
+Permission names/groups, channel types, audit codes, operation/status labels and
+recognized API/execution errors are translated at display time. API codes, logs,
+enums, stored audit data, user names, IDs and reasons remain unchanged. Unknown
+errors use a safe localized fallback rather than exposing arbitrary server text.
+Counters use `Intl.PluralRules` with `one|other` dictionary forms, or
+`one|few|many` for Russian; dates use the existing `Intl` formatters.
+
 ### Database package
 
 Owns the persistence schema for cached Discord entities, snapshots, change

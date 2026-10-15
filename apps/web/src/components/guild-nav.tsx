@@ -14,11 +14,11 @@ export interface NavItem {
 }
 
 /** Client-side so the active section can be highlighted — the old header gave no indication of where you were. */
-export function GuildNav({ items }: { items: NavItem[] }) {
+export function GuildNav({ items, label }: { items: NavItem[]; label: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Server sections">
+    <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label={label}>
       {items.map((item) => {
         const active = item.exact
           ? pathname === item.href

@@ -5,11 +5,12 @@ import { resolveLang } from '@/lib/i18n/server';
 import { getSession } from '@/lib/session';
 import { Brand, LanguagePicker, UserMenu } from '@/components/shell';
 import { appVersion } from '@/lib/version';
+import { LocaleProvider } from '@/components/locale-provider';
 
-export const metadata: Metadata = {
-  title: 'D-View',
-  description: 'Discord permission visibility dashboard for safer server administration.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = t(await resolveLang());
+  return { title: copy.appName, description: copy.tagline };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const lang = await resolveLang();
@@ -23,6 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // with an English voice.
     <html lang={lang}>
       <body className="min-h-screen">
+        <LocaleProvider lang={lang}>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-brand focus:px-3 focus:py-2 focus:text-white"
@@ -51,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mx-auto max-w-[110rem] px-4 pt-2 pb-6 text-xs text-ink-faint">
           D-View v{appVersion()}
         </footer>
+        </LocaleProvider>
       </body>
     </html>
   );

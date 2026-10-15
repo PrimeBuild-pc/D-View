@@ -1,12 +1,12 @@
 import {
   channelKind,
-  permissionLabel,
   splitBits,
   type Bitfield,
   type PermissionSnapshot,
 } from '@dpd/shared';
 import type { ChangeOperation } from '@dpd/permission-engine';
 import type { Dict } from '@/lib/i18n';
+import { localizedPermissionLabel } from '@/lib/permissions-ui';
 import { Badge } from './ui';
 import { ChannelIcon } from './icons';
 
@@ -29,7 +29,7 @@ export function OperationSummary({
   const role = operation.roleId
     ? snapshot.roles.find((candidate) => candidate.id === operation.roleId)
     : undefined;
-  const target = operation.targetId
+  const target = operation.targetType === 'role' && operation.targetId
     ? snapshot.roles.find((candidate) => candidate.id === operation.targetId)
     : undefined;
   const channel = operation.channelId
@@ -53,19 +53,25 @@ export function OperationSummary({
         {channel ? (
           <>
             <span className="text-ink-faint">→</span>
-            <ChannelIcon kind={channelKind(channel.type)} className="text-ink-faint" />
+            <ChannelIcon
+              kind={channelKind(channel.type)}
+              aria-hidden={false}
+              role="img"
+              aria-label={copy.channelKinds[channelKind(channel.type)]}
+              className="text-ink-faint"
+            />
             <span>{channel.name}</span>
           </>
         ) : null}
-        {operation.kind === 'delete-channel-overwrite' ? (
-          <Badge tone="deny">{copy.changes.discard}</Badge>
-        ) : null}
+        <Badge tone={operation.kind === 'delete-channel-overwrite' ? 'deny' : 'neutral'}>
+          {copy.operationKinds[operation.kind]}
+        </Badge>
       </p>
 
       <div className="mt-1 flex flex-wrap gap-1">
-        <PermissionPills bits={allowed} tone="allow" label={copy.explorer.allowedBy} />
-        <PermissionPills bits={denied} tone="deny" label={copy.explorer.deniedBy} />
-        <PermissionPills bits={cleared} tone="inherit" label={copy.explorer.filterAll} />
+        <PermissionPills bits={allowed} tone="allow" label={copy.explorer.allowedBy} copy={copy} />
+        <PermissionPills bits={denied} tone="deny" label={copy.explorer.deniedBy} copy={copy} />
+        <PermissionPills bits={cleared} tone="inherit" label={copy.changes.cleared} copy={copy} />
       </div>
     </div>
   );
@@ -75,20 +81,21 @@ function PermissionPills({
   bits,
   tone,
   label,
+  copy,
 }: {
   bits: Bitfield[];
   tone: 'allow' | 'deny' | 'inherit';
   label: string;
+  copy: Dict;
 }) {
   if (bits.length === 0) return null;
   return (
     <span className="flex flex-wrap items-center gap-1">
       <span className="text-[11px] text-ink-faint">{label}:</span>
       {bits.map((bit) => (
-        // Unknown bits render as "Unknown (1 << n)" instead of vanishing, so
-        // drift against Discord is visible rather than silent.
+        // Unknown bits stay visible rather than silently disappearing.
         <Badge key={String(bit)} tone={tone}>
-          {permissionLabel(bit)}
+          {localizedPermissionLabel(bit, copy)}
         </Badge>
       ))}
     </span>

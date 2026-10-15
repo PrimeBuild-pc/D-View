@@ -28,6 +28,7 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
       <MemberLookup snapshot={load.snapshot} copy={copy} guildId={guildId} />
       <MemberBulk
         copy={copy}
+        lang={lang}
         guildId={guildId}
         count={count}
         syncedAt={guild?.membersSyncedAt?.toISOString() ?? null}
