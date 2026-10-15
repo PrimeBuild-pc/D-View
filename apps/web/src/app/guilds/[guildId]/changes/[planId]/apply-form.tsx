@@ -35,6 +35,7 @@ export function ApplyForm({
   copy: Dict;
 }) {
   const [typed, setTyped] = useState('');
+  const confirmationId = useId();
   const mismatchId = useId();
   const matches = typed.trim() === guildName;
 
@@ -45,6 +46,9 @@ export function ApplyForm({
           {fill(copy.changes.confirmTyping, { name: guildName })}
         </Notice>
       ) : null}
+      <p id={confirmationId} className="text-sm text-ink-muted">
+        {fill(copy.changes.confirmTyping, { name: guildName })}. {copy.changes.confirmHelp}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <Input
           name="confirm"
@@ -52,7 +56,7 @@ export function ApplyForm({
           onChange={(event) => setTyped(event.target.value)}
           aria-label={fill(copy.changes.confirmTyping, { name: guildName })}
           aria-invalid={typed.length > 0 && !matches}
-          aria-describedby={typed.length > 0 && !matches ? mismatchId : undefined}
+          aria-describedby={`${confirmationId}${typed.length > 0 && !matches ? ` ${mismatchId}` : ''}`}
           required
           placeholder={guildName}
           className="max-w-xs"

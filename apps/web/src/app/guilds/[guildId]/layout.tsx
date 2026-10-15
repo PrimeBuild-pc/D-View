@@ -93,7 +93,7 @@ export default async function GuildLayout({
           </CardBody>
         </Card>
 
-        <GuildNav items={items} />
+        <GuildNav items={items} label={copy.nav.serverSections} />
 
         <Card>
           <CardBody className="space-y-2 p-3 text-xs text-ink-faint">

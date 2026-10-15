@@ -161,7 +161,7 @@ export function Matrix({
                             'hover:ring-1 hover:ring-brand',
                           )}
                         >
-                          {value === 'admin' ? 'A' : value === 'write' ? '✓' : value === 'read' ? '·' : ''}
+                          {value === 'admin' ? copy.matrix.legendAdmin.slice(0, 1) : value === 'write' ? '✓' : value === 'read' ? '·' : ''}
                         </Link>
                       </td>
                     );

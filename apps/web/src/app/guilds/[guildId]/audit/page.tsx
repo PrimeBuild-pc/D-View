@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { auditSnapshot, type AuditSeverity } from '@dpd/permission-engine';
-import { t, fill } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
+import { auditText } from '@/lib/permissions-ui';
 import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { loadSnapshot } from '@/lib/plans';
@@ -71,9 +72,9 @@ export default async function AuditPage({
                 <CardBody className="flex flex-wrap items-start gap-3 py-3">
                   <Badge tone={tones[finding.severity]}>{copy.audit[finding.severity]}</Badge>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{fill(copy.audit[finding.code], finding.params)}</p>
+                    <p className="font-medium">{auditText(copy, finding, lang)}</p>
                     <p className="mt-0.5 text-sm text-ink-muted">
-                      {fill(copy.audit[`${finding.code}Help` as keyof typeof copy.audit], finding.params)}
+                      {auditText(copy, finding, lang, true)}
                     </p>
                   </div>
                   {/* Every finding links to the exact place that produced it —

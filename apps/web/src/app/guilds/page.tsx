@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@dpd/database';
-import { t } from '@/lib/i18n';
+import { t, localizedError } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { getSession } from '@/lib/session';
 import { readableGuilds } from '@/lib/guild';
@@ -51,7 +51,7 @@ export default async function GuildsPage({
       {params.sync === 'failed' ? (
         <Notice tone="critical" title={copy.sync.failed}>
           {/* The real cause used to end up in the server console only. */}
-          {params.detail ? <code className="text-xs break-all">{params.detail}</code> : null}
+          {params.detail ? <code className="text-xs break-all">{localizedError(copy, params.detail)}</code> : null}
         </Notice>
       ) : null}
       {params.sync === 'missing-token' ? (

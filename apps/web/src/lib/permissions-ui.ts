@@ -5,12 +5,13 @@ import {
   VIEW_CHANNEL,
   permissionBits,
   permissionGroups,
-  permissionLabel,
   type Bitfield,
   type ChannelKind,
   type PermissionGroup,
+  type PermissionName,
 } from '@dpd/shared';
-import type { Dict } from './i18n';
+import type { AuditFinding } from '@dpd/permission-engine';
+import { fill, plural, type Dict, type Lang } from './i18n';
 
 export const groupOrder: PermissionGroup[] = [
   'general',
@@ -23,26 +24,38 @@ export const groupOrder: PermissionGroup[] = [
   'server',
 ];
 
-export const groupLabels: Record<PermissionGroup, keyof Dict['explorer'] | string> = {
-  general: 'General',
-  text: 'Text',
-  threads: 'Threads',
-  voice: 'Voice',
-  stage: 'Stage',
-  events: 'Events',
-  membership: 'Membership',
-  server: 'Server',
-};
+const namesByBit = new Map<Bitfield, PermissionName>(
+  Object.entries(permissionBits).map(([name, bit]) => [bit, name as PermissionName]),
+);
+
+export function localizedPermissionLabel(bit: Bitfield, copy: Dict): string {
+  const name = namesByBit.get(bit);
+  return name ? copy.permissionNames[name] : fill(copy.common.unknownPermission, { bit: String(bit) });
+}
+
+/** Only engine-defined permission identifiers are translated, never role/channel names. */
+export function auditText(copy: Dict, finding: AuditFinding, lang: Lang, help = false): string {
+  const params = { ...finding.params };
+  if (finding.code === 'everyone-dangerous-permission') {
+    const name = params.permission as PermissionName;
+    params.permission = copy.permissionNames[name] ?? name;
+  }
+  const key = help ? `${finding.code}Help` as `${AuditFinding['code']}Help` : finding.code;
+  const template = copy.audit[key];
+  return typeof params.count === 'number'
+    ? plural(template, params.count, params, lang)
+    : fill(template, params);
+}
 
 export interface PermissionRow {
   bit: Bitfield;
   label: string;
 }
 
-export function permissionRows(group: PermissionGroup): PermissionRow[] {
+export function permissionRows(group: PermissionGroup, copy: Dict): PermissionRow[] {
   return permissionGroups[group].map((name) => ({
     bit: permissionBits[name],
-    label: permissionLabel(permissionBits[name]),
+    label: copy.permissionNames[name],
   }));
 }
 

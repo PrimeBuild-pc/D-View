@@ -17,11 +17,12 @@ vi.mock('react', async (importOriginal) => {
 vi.mock('@/components/ui', () => import('./ui'));
 vi.mock('@/components/icons', () => import('./icons'));
 vi.mock('@/components/operation-summary', () => import('./operation-summary'));
+vi.mock('@/components/relative-time', () => import('./relative-time'));
 vi.mock('@/lib/i18n', () => import('../lib/i18n'));
 vi.mock('@/lib/permissions-ui', () => import('../lib/permissions-ui'));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-const copy = t('en');
+const copy = t('it');
 const snapshot: PermissionSnapshot = {
   schemaVersion: '2.0.0',
   exportedAt: '2026-01-01T00:00:00.000Z',
@@ -80,14 +81,14 @@ describe('accessible UI states', () => {
     const actual = await vi.importActual<typeof React>('react');
     vi.mocked(React.useState).mockImplementation(actual.useState);
     const matrix = renderToStaticMarkup(<Matrix snapshot={snapshot} copy={copy} guildId="1" />);
-    expect(matrix).toContain('<span class="sr-only">Search roles</span>');
-    expect(matrix).toContain('<span class="sr-only">Search channels</span>');
-    expect(matrix).toContain('aria-label="@everyone → staff: Hidden"');
+    expect(matrix).toContain(`<span class="sr-only">${copy.explorer.searchRoles}</span>`);
+    expect(matrix).toContain(`<span class="sr-only">${copy.explorer.searchChannels}</span>`);
+    expect(matrix).toContain(`aria-label="@everyone → staff: ${copy.matrix.legendHidden}"`);
     expect(matrix).toContain('tabindex="0" role="region"');
     const explorer = renderToStaticMarkup(<Explorer snapshot={snapshot} copy={copy} guildId="1" baseSnapshotId="2" canWrite initialChannelId="3" />);
-    expect(explorer).toMatch(/aria-label="[^"]+: allow"/);
-    expect(explorer).toMatch(/aria-label="[^"]+: inherit"/);
-    expect(explorer).toMatch(/aria-label="[^"]+: deny"/);
+    for (const state of ['allow', 'inherit', 'deny'] as const) {
+      expect(explorer).toContain(`aria-label="${copy.permissionNames.ViewChannel}: ${copy.common[state]}"`);
+    }
     expect(explorer).toContain('focus-visible:-outline-offset-2');
     expect(explorer).toContain('aria-pressed="true"');
   });
@@ -96,14 +97,14 @@ describe('accessible UI states', () => {
     const [setState] = mockState([{ status: 'idle' }]);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Offline')));
     await click(MemberBulk({ copy, guildId: '1', count: 0, syncedAt: null }), copy.members.bulkAction);
-    expect(setState).toHaveBeenLastCalledWith({ status: 'error', message: 'Offline' });
+    expect(setState).toHaveBeenLastCalledWith({ status: 'error', message: copy.errors.REQUEST_FAILED });
   });
 
   it('recovers rollback creation after an unreadable response', async () => {
     const [setBusy, setError] = mockState([false, null]);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.reject(new Error('Invalid JSON')) }));
-    await click(RollbackButton({ guildId: '1', planId: '2', label: 'Rollback', pending: 'Creating' }), 'Rollback');
-    expect(setError).toHaveBeenLastCalledWith('Invalid JSON');
+    await click(RollbackButton({ guildId: '1', planId: '2', label: 'Rollback', pending: 'Creating', copy }), 'Rollback');
+    expect(setError).toHaveBeenLastCalledWith(copy.errors.REQUEST_FAILED);
     expect(setBusy).toHaveBeenLastCalledWith(false);
   });
 
@@ -113,7 +114,7 @@ describe('accessible UI states', () => {
     ]);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Offline')));
     await click(ImportForm({ copy, guildId: '1', snapshot }), copy.changes.createPlan);
-    expect(setError).toHaveBeenLastCalledWith('Offline');
+    expect(setError).toHaveBeenLastCalledWith(copy.errors.REQUEST_FAILED);
     expect(setCreating).toHaveBeenLastCalledWith(false);
   });
 
@@ -125,7 +126,7 @@ describe('accessible UI states', () => {
       target: { files: [{ text: () => Promise.reject(new Error('Unreadable file')) }] },
     });
     expect(setResult).toHaveBeenCalledWith(null);
-    expect(setError).toHaveBeenLastCalledWith('Unreadable file');
+    expect(setError).toHaveBeenLastCalledWith(copy.errors.FILE_READ_FAILED);
     expect(setValidating).toHaveBeenLastCalledWith(false);
   });
 

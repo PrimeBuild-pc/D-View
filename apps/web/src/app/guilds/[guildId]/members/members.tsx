@@ -8,8 +8,8 @@ import {
   type PermissionSnapshot,
 } from '@dpd/shared';
 import { explainChannelPermissions, indexSnapshot, type PermissionSubject } from '@dpd/permission-engine';
-import type { Dict } from '@/lib/i18n';
-import { fill } from '@/lib/i18n';
+import type { Dict, Lang } from '@/lib/i18n';
+import { localizedError, plural } from '@/lib/i18n';
 import { Badge, Button, Card, CardBody, Input, Notice, SectionTitle, cx } from '@/components/ui';
 import { ChannelIcon, IconUser } from '@/components/icons';
 import { verdicts } from '@/lib/permissions-ui';
@@ -51,10 +51,10 @@ export function MemberLookup({
         `/api/guilds/${guildId}/members?user=${encodeURIComponent(query.trim())}`,
       );
       const payload = (await response.json()) as { member?: MemberView; error?: string };
-      if (!response.ok || !payload.member) throw new Error(payload.error ?? copy.members.notFound);
+      if (!response.ok || !payload.member) throw new Error(payload.error ?? 'MEMBER_NOT_FOUND');
       setMember(payload.member);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(localizedError(copy, cause));
     } finally {
       setLoading(false);
     }
@@ -187,7 +187,7 @@ export function MemberLookup({
                       key={channel.id}
                       className="defer-paint flex flex-wrap items-center gap-2 border-b border-line/60 px-4 py-1.5 text-sm last:border-0"
                     >
-                      <ChannelIcon kind={kind} className={visible ? 'text-ink-muted' : 'text-ink-faint'} />
+                      <ChannelIcon kind={kind} aria-hidden={false} role="img" aria-label={copy.channelKinds[kind]} className={visible ? 'text-ink-muted' : 'text-ink-faint'} />
                       <span className={cx('min-w-0 truncate', !visible && 'opacity-60')}>{channel.name}</span>
                       <span className="ml-auto flex flex-wrap gap-1">
                         {verdicts(result.raw, kind).map((verdict) => (
@@ -220,25 +220,32 @@ export function MemberBulk({
   guildId,
   count,
   syncedAt,
+  lang = 'en',
 }: {
   copy: Dict;
   guildId: string;
   count: number;
   syncedAt: string | null;
+  lang?: Lang;
 }) {
   const [state, setState] = useState<{ status: 'idle' | 'running' | 'error'; message?: string }>({
     status: 'idle',
   });
+
+  // A fixed zone keeps the initial server and browser renders identical.
+  const syncedTime = syncedAt ? new Intl.DateTimeFormat(lang, {
+    dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC',
+  }).format(new Date(syncedAt)) : '';
 
   async function sync() {
     setState({ status: 'running' });
     try {
       const response = await fetch(`/api/guilds/${guildId}/members`, { method: 'POST' });
       const payload = (await response.json()) as { error?: string; imported?: number };
-      if (!response.ok) throw new Error(payload.error ?? copy.common.somethingWentWrong);
+      if (!response.ok) throw new Error(payload.error ?? 'REQUEST_FAILED');
       window.location.reload();
     } catch (cause) {
-      setState({ status: 'error', message: cause instanceof Error ? cause.message : String(cause) });
+      setState({ status: 'error', message: localizedError(copy, cause) });
     }
   }
 
@@ -248,7 +255,7 @@ export function MemberBulk({
         <SectionTitle>{copy.members.bulkTitle}</SectionTitle>
         <p className="text-sm text-ink-muted">{copy.members.bulkHelp}</p>
         <p className="text-xs text-ink-faint">
-          {syncedAt ? fill(copy.members.bulkSynced, { count, when: '' }) : copy.members.bulkNever}
+          {syncedAt ? plural(copy.members.bulkSynced, count, { when: `${syncedTime} UTC` }, lang) : copy.members.bulkNever}
         </p>
         <Button onClick={sync} disabled={state.status === 'running'}>
           {state.status === 'running' ? copy.members.bulkSyncing : copy.members.bulkAction}

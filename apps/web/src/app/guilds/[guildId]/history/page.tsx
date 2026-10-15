@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@dpd/database';
 import { diffSnapshots } from '@dpd/permission-engine';
 import { permissionSnapshotSchema, isCurrentSnapshot, type PermissionSnapshot } from '@dpd/shared';
-import { t, fill } from '@/lib/i18n';
+import { t, localizedError, plural } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { Badge, Card, CardBody, EmptyState, Notice, SectionTitle, cx } from '@/components/ui';
@@ -59,7 +59,7 @@ export default async function HistoryPage({
     try {
       operations = diffSnapshots(fromSnapshot, toSnapshot);
     } catch (error) {
-      diffError = error instanceof Error ? error.message : String(error);
+      diffError = localizedError(copy, error);
     }
   }
 
@@ -134,11 +134,7 @@ export default async function HistoryPage({
             ) : (
               <>
                 <p className="text-sm text-ink-muted">
-                  {fill(
-                    copy.history.changeCount.split('|')[operations.length === 1 ? 0 : 1] ??
-                      copy.history.changeCount,
-                    { count: operations.length },
-                  )}
+                  {plural(copy.history.changeCount, operations.length, {}, lang)}
                 </p>
                 <ul className="space-y-1">
                   {operations.map((operation, position) => (

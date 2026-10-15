@@ -29,6 +29,7 @@ export default async function ExplorerPage({
       <Explorer
         snapshot={load.snapshot}
         copy={copy}
+        lang={lang}
         guildId={guildId}
         baseSnapshotId={load.id}
         canWrite={canWriteGuild(access.guild)}

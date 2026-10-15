@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@dpd/database';
-import { t, fill } from '@/lib/i18n';
+import { t, fill, localizedError, plural } from '@/lib/i18n';
 import { resolveLang } from '@/lib/i18n/server';
 import { guildAccess } from '@/lib/guild';
 import { deserialiseOperation, loadSnapshot, type PlanWarning } from '@/lib/plans';
@@ -78,11 +78,7 @@ export default async function PlanPage({
       <Card>
         <CardBody className="space-y-3">
           <SectionTitle>
-            {fill(
-              copy.changes.operations.split('|')[plan.operations.length === 1 ? 0 : 1] ??
-                copy.changes.operations,
-              { count: plan.operations.length },
-            )}
+            {plural(copy.changes.operations, plan.operations.length, {}, lang)}
           </SectionTitle>
           {snapshot ? (
             <ul className="space-y-1.5">
@@ -150,7 +146,11 @@ export default async function PlanPage({
                     <span className="text-ink-muted">
                       {row?.channelId ?? row?.roleId ?? ''}
                     </span>
-                    {result.detail ? <span className="text-xs text-ink-faint">{result.detail}</span> : null}
+                    {result.detail ? (
+                      <span className="text-xs text-ink-faint">
+                        {localizedError(copy, result.detail)}
+                      </span>
+                    ) : null}
                   </li>
                 );
               })}
@@ -164,6 +164,7 @@ export default async function PlanPage({
                   planId={planId}
                   label={copy.changes.rollback}
                   pending={copy.common.loading}
+                  copy={copy}
                 />
               </div>
             ) : null}

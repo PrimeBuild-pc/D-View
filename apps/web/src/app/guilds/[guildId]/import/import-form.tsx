@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toBits, type PermissionSnapshot } from '@dpd/shared';
 import type { ChangeOperation } from '@dpd/permission-engine';
 import type { Dict } from '@/lib/i18n';
-import { fill } from '@/lib/i18n';
+import { fill, localizedError } from '@/lib/i18n';
 import { Button, Card, CardBody, Input, Notice, SectionTitle } from '@/components/ui';
 import { OperationSummary } from '@/components/operation-summary';
 import type { PlanWarning } from '@/lib/plans';
@@ -49,18 +49,22 @@ export function ImportForm({
     try {
       // Parsed here first, so a stray character does not become an unreadable
       // server-side schema error.
-      JSON.parse(payload);
+      try {
+        JSON.parse(payload);
+      } catch {
+        throw new Error('INVALID_JSON');
+      }
       const response = await fetch(`/api/guilds/${guildId}/import`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: payload,
       });
       const body = (await response.json()) as Result & { error?: string };
-      if (!response.ok) throw new Error(body.error ?? copy.importPage.invalid);
+      if (!response.ok) throw new Error(body.error ?? 'INVALID_IMPORT');
       setResult(body);
       setIncluded(Object.fromEntries(body.operations.map((_, index) => [index, true])));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(localizedError(copy, cause));
     } finally {
       setValidating(false);
     }
@@ -105,10 +109,10 @@ export function ImportForm({
         body: JSON.stringify({ baseSnapshotId: result.baseSnapshotId, reason: reason.trim() || undefined, edits }),
       });
       const body = (await response.json()) as { planId?: string; error?: string };
-      if (!response.ok || !body.planId) throw new Error(body.error ?? copy.common.somethingWentWrong);
+      if (!response.ok || !body.planId) throw new Error(body.error ?? 'REQUEST_FAILED');
       router.push(`/guilds/${guildId}/changes/${body.planId}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(localizedError(copy, cause));
       setCreating(false);
     }
   }
@@ -138,8 +142,8 @@ export function ImportForm({
                   const text = await file.text();
                   setJson(text);
                   await validate(text);
-                } catch (cause) {
-                  setError(cause instanceof Error ? cause.message : String(cause));
+                } catch {
+                  setError(localizedError(copy, 'FILE_READ_FAILED'));
                   setValidating(false);
                 }
               }}

@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers';
-import { LANG_COOKIE, isLang, type Lang } from './index';
+import { LANG_COOKIE, negotiateLang, type Lang } from './index';
 
 /**
  * Resolve the language for a request.
@@ -10,12 +10,5 @@ import { LANG_COOKIE, isLang, type Lang } from './index';
  */
 export async function resolveLang(): Promise<Lang> {
   const stored = (await cookies()).get(LANG_COOKIE)?.value;
-  if (isLang(stored)) return stored;
-
-  const header = (await headers()).get('accept-language') ?? '';
-  for (const part of header.split(',')) {
-    const tag = part.split(';')[0]?.trim().slice(0, 2).toLowerCase();
-    if (isLang(tag)) return tag;
-  }
-  return 'en';
+  return negotiateLang(stored, (await headers()).get('accept-language') ?? '');
 }
