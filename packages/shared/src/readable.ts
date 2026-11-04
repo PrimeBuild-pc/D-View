@@ -1,6 +1,19 @@
 import { z } from 'zod';
-import { channelKind, isThread, type DiscordChannelSnapshot, type PermissionOverwrite, type PermissionSnapshot } from './index';
-import { KNOWN_BITS, fromBits, permissionBits, toBits, type Bitfield, type PermissionName } from './permissions';
+import {
+  channelKind,
+  isThread,
+  type DiscordChannelSnapshot,
+  type PermissionOverwrite,
+  type PermissionSnapshot,
+} from './index';
+import {
+  KNOWN_BITS,
+  fromBits,
+  permissionBits,
+  toBits,
+  type Bitfield,
+  type PermissionName,
+} from './permissions';
 
 /**
  * A human/LLM-editable view of a snapshot: categories contain their channels, and
@@ -38,7 +51,13 @@ export interface ReadablePermissionMap {
   howToEdit: string[];
   guild: { id: string; name: string };
   validPermissions: PermissionName[];
-  roles: { id: string; name: string; position: number; managed: boolean; permissions: PermissionName[] }[];
+  roles: {
+    id: string;
+    name: string;
+    position: number;
+    managed: boolean;
+    permissions: PermissionName[];
+  }[];
   channels: ReadableChannel[];
 }
 
@@ -58,28 +77,54 @@ function namesOf(bits: Bitfield): PermissionName[] {
   return permissionNames.filter((name) => (bits & permissionBits[name]) !== 0n);
 }
 
-function sameOverwrites(a: PermissionOverwrite[], b: PermissionOverwrite[]): boolean {
-  const key = (o: PermissionOverwrite) => `${o.targetType}:${o.targetId}:${o.allow}:${o.deny}`;
+function sameOverwrites(
+  a: PermissionOverwrite[],
+  b: PermissionOverwrite[],
+): boolean {
+  const key = (o: PermissionOverwrite) =>
+    `${o.targetType}:${o.targetId}:${o.allow}:${o.deny}`;
   const left = a.map(key).sort();
   const right = b.map(key).sort();
-  return left.length === right.length && left.every((value, i) => value === right[i]);
+  return (
+    left.length === right.length && left.every((value, i) => value === right[i])
+  );
 }
 
-export function toReadable(snapshot: PermissionSnapshot): ReadablePermissionMap {
-  const roleName = new Map(snapshot.roles.map((role) => [role.id, role.id === snapshot.guild.id ? EVERYONE : role.name]));
+export function toReadable(
+  snapshot: PermissionSnapshot,
+): ReadablePermissionMap {
+  const roleName = new Map(
+    snapshot.roles.map((role) => [
+      role.id,
+      role.id === snapshot.guild.id ? EVERYONE : role.name,
+    ]),
+  );
   const overwrites = (list: PermissionOverwrite[]): ReadableOverwrite[] =>
     list.map((o) => ({
-      ...(o.targetType === 'role' ? { role: roleName.get(o.targetId) ?? o.targetId } : { member: o.targetId }),
+      ...(o.targetType === 'role'
+        ? { role: roleName.get(o.targetId) ?? o.targetId }
+        : { member: o.targetId }),
       allow: namesOf(toBits(o.allow)),
       deny: namesOf(toBits(o.deny)),
     }));
-  const byPosition = (a: DiscordChannelSnapshot, b: DiscordChannelSnapshot) => a.position - b.position;
-  const visible = snapshot.channels.filter((channel) => !isThread(channel.type)).sort(byPosition);
-  const categories = new Map(visible.filter((c) => channelKind(c.type) === 'category').map((c) => [c.id, c]));
+  const byPosition = (a: DiscordChannelSnapshot, b: DiscordChannelSnapshot) =>
+    a.position - b.position;
+  const visible = snapshot.channels
+    .filter((channel) => !isThread(channel.type))
+    .sort(byPosition);
+  const categories = new Map(
+    visible
+      .filter((c) => channelKind(c.type) === 'category')
+      .map((c) => [c.id, c]),
+  );
 
   const leaf = (channel: DiscordChannelSnapshot): ReadableChannel => {
-    const parent = channel.parentId ? categories.get(channel.parentId) : undefined;
-    const synced = parent !== undefined && sameOverwrites(parent.overwrites, channel.overwrites);
+    const parent = channel.parentId
+      ? categories.get(channel.parentId)
+      : undefined;
+    const synced =
+      parent !== undefined &&
+      sameOverwrites(parent.overwrites, channel.overwrites);
     return {
       id: channel.id,
       name: channel.name,
@@ -90,7 +135,12 @@ export function toReadable(snapshot: PermissionSnapshot): ReadablePermissionMap 
   };
 
   const tree: ReadableChannel[] = [
-    ...visible.filter((c) => !categories.has(c.id) && !(c.parentId && categories.has(c.parentId))).map(leaf),
+    ...visible
+      .filter(
+        (c) =>
+          !categories.has(c.id) && !(c.parentId && categories.has(c.parentId)),
+      )
+      .map(leaf),
     ...[...categories.values()].map((category) => ({
       id: category.id,
       name: category.name,
@@ -145,26 +195,39 @@ const readableSchema = z.object({
   format: z.literal(READABLE_FORMAT),
   formatVersion: z.literal(READABLE_FORMAT_VERSION),
   guild: z.object({ id: z.string() }),
-  roles: z.array(z.object({ id: z.string(), permissions: names })).max(250).default([]),
+  roles: z
+    .array(z.object({ id: z.string(), permissions: names }))
+    .max(250)
+    .default([]),
   channels: z.array(readableChannelSchema).max(1000).default([]),
 });
 
 export function isReadableMap(data: unknown): boolean {
-  return typeof data === 'object' && data !== null && (data as { format?: unknown }).format === READABLE_FORMAT;
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as { format?: unknown }).format === READABLE_FORMAT
+  );
 }
 
 /**
  * Applies an edited readable file on top of `base` and returns the resulting full
  * snapshot. Throws an Error whose message explains the first problem found.
  */
-export function fromReadable(data: unknown, base: PermissionSnapshot): PermissionSnapshot {
+export function fromReadable(
+  data: unknown,
+  base: PermissionSnapshot,
+): PermissionSnapshot {
   const parsed = readableSchema.safeParse(data);
   if (!parsed.success) {
     const issue = parsed.error.issues[0]!;
-    throw new Error(`Readable file is malformed at "${issue.path.join('.')}": ${issue.message}`);
+    throw new Error(
+      `Readable file is malformed at "${issue.path.join('.')}": ${issue.message}`,
+    );
   }
   const file = parsed.data;
-  if (file.guild.id !== base.guild.id) throw new Error('This file belongs to a different server.');
+  if (file.guild.id !== base.guild.id)
+    throw new Error('This file belongs to a different server.');
 
   const unknownNames = new Set<string>();
   const bitsOf = (list: string[]): Bitfield =>
@@ -174,7 +237,8 @@ export function fromReadable(data: unknown, base: PermissionSnapshot): Permissio
       return all | (bit ?? 0n);
     }, 0n);
   // Bits this build cannot name are kept exactly as they are live.
-  const keepUnknown = (known: Bitfield, live: string | undefined) => known | (toBits(live) & ~KNOWN_BITS);
+  const keepUnknown = (known: Bitfield, live: string | undefined) =>
+    known | (toBits(live) & ~KNOWN_BITS);
 
   const rolesById = new Map(base.roles.map((role) => [role.id, role]));
   const rolesByName = new Map<string, string[]>();
@@ -185,54 +249,107 @@ export function fromReadable(data: unknown, base: PermissionSnapshot): Permissio
   const roles = new Map(base.roles.map((role) => [role.id, { ...role }]));
   for (const edited of file.roles) {
     const role = roles.get(edited.id);
-    if (!role) throw new Error(`Unknown role id ${edited.id}: roles cannot be created by import.`);
-    role.permissions = fromBits(keepUnknown(bitsOf(edited.permissions), rolesById.get(edited.id)!.permissions));
+    if (!role)
+      throw new Error(
+        `Unknown role id ${edited.id}: roles cannot be created by import.`,
+      );
+    role.permissions = fromBits(
+      keepUnknown(
+        bitsOf(edited.permissions),
+        rolesById.get(edited.id)!.permissions,
+      ),
+    );
   }
 
-  const channelsById = new Map(base.channels.map((channel) => [channel.id, channel]));
-  const channels = new Map(base.channels.map((channel) => [channel.id, { ...channel }]));
+  const channelsById = new Map(
+    base.channels.map((channel) => [channel.id, channel]),
+  );
+  const channels = new Map(
+    base.channels.map((channel) => [channel.id, { ...channel }]),
+  );
 
-  const resolveOverwrites = (channelId: string, list: ParsedOverwrite[]): PermissionOverwrite[] => {
-    const live = new Map(channelsById.get(channelId)!.overwrites.map((o) => [o.targetId, o]));
+  const resolveOverwrites = (
+    channelId: string,
+    list: ParsedOverwrite[],
+  ): PermissionOverwrite[] => {
+    const live = new Map(
+      channelsById.get(channelId)!.overwrites.map((o) => [o.targetId, o]),
+    );
     return list.map((entry) => {
       let targetType: 'role' | 'member';
       let targetId: string;
       if (entry.role !== undefined && entry.member === undefined) {
-        const matches = rolesByName.get(entry.role) ?? (rolesById.has(entry.role) ? [entry.role] : []);
+        const matches =
+          rolesByName.get(entry.role) ??
+          (rolesById.has(entry.role) ? [entry.role] : []);
         if (matches.length !== 1) {
-          throw new Error(matches.length ? `Role name "${entry.role}" is ambiguous; use its id instead.` : `Unknown role "${entry.role}".`);
+          throw new Error(
+            matches.length
+              ? `Role name "${entry.role}" is ambiguous; use its id instead.`
+              : `Unknown role "${entry.role}".`,
+          );
         }
         [targetType, targetId] = ['role', matches[0]!];
-      } else if (entry.member !== undefined && entry.role === undefined && /^\d{1,20}$/.test(entry.member)) {
+      } else if (
+        entry.member !== undefined &&
+        entry.role === undefined &&
+        /^\d{1,20}$/.test(entry.member)
+      ) {
         [targetType, targetId] = ['member', entry.member];
       } else {
-        throw new Error(`Each overwrite in channel ${channelId} needs exactly one "role" name or "member" id.`);
+        throw new Error(
+          `Each overwrite in channel ${channelId} needs exactly one "role" name or "member" id.`,
+        );
       }
       const previous = live.get(targetId);
       const allow = keepUnknown(bitsOf(entry.allow), previous?.allow);
       const deny = keepUnknown(bitsOf(entry.deny), previous?.deny);
-      if ((allow & deny) !== 0n) throw new Error(`Channel ${channelId}: a permission is both allowed and denied.`);
-      return { targetType, targetId, allow: fromBits(allow), deny: fromBits(deny) };
+      if ((allow & deny) !== 0n)
+        throw new Error(
+          `Channel ${channelId}: a permission is both allowed and denied.`,
+        );
+      return {
+        targetType,
+        targetId,
+        allow: fromBits(allow),
+        deny: fromBits(deny),
+      };
     });
   };
 
-  const apply = (node: ParsedChannel, categoryOverwrites?: PermissionOverwrite[]) => {
+  const apply = (
+    node: ParsedChannel,
+    categoryOverwrites?: PermissionOverwrite[],
+  ) => {
     const channel = channels.get(node.id);
-    if (!channel) throw new Error(`Unknown channel id ${node.id}: channels cannot be created by import.`);
+    if (!channel)
+      throw new Error(
+        `Unknown channel id ${node.id}: channels cannot be created by import.`,
+      );
     let own: PermissionOverwrite[] | undefined;
     if (node.syncedWithCategory === true) {
-      const parent = channel.parentId ? channels.get(channel.parentId) : undefined;
+      const parent = channel.parentId
+        ? channels.get(channel.parentId)
+        : undefined;
       own = categoryOverwrites ?? parent?.overwrites;
     } else if (node.overwrites) {
       own = resolveOverwrites(node.id, node.overwrites);
     }
     if (own) channel.overwrites = own;
-    for (const child of node.channels ?? []) apply(child, own ?? channel.overwrites);
+    for (const child of node.channels ?? [])
+      apply(child, own ?? channel.overwrites);
   };
   for (const node of file.channels) apply(node);
 
   if (unknownNames.size) {
-    throw new Error(`Unknown permission names: ${[...unknownNames].join(', ')}. Use only names from "validPermissions".`);
+    throw new Error(
+      `Unknown permission names: ${[...unknownNames].join(', ')}. Use only names from "validPermissions".`,
+    );
   }
-  return { ...base, exportedAt: new Date().toISOString(), roles: [...roles.values()], channels: [...channels.values()] };
+  return {
+    ...base,
+    exportedAt: new Date().toISOString(),
+    roles: [...roles.values()],
+    channels: [...channels.values()],
+  };
 }
