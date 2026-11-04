@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { diffSnapshots, indexSnapshot } from '@dpd/permission-engine';
-import { fromBits, permissionSnapshotSchema, snapshotVersionOf, SNAPSHOT_SCHEMA_VERSION, type PermissionSnapshot } from '@dpd/shared';
+import { fromBits, fromReadable, isReadableMap, permissionSnapshotSchema, snapshotVersionOf, SNAPSHOT_SCHEMA_VERSION, type PermissionSnapshot } from '@dpd/shared';
 import { guildAccess } from '@/lib/guild';
 import { invalidOrigin, readBody, requestError } from '@/lib/request';
 import { loadBotContext, loadSnapshot, resolveEdits, warningsFor, type PlanEdit } from '@/lib/plans';
@@ -26,6 +26,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: 'That is not valid JSON.' }, { status: 400 });
+  }
+
+  if (isReadableMap(body)) {
+    // Rebuild a full snapshot from the edited tree; it is then validated like any upload.
+    try {
+      body = fromReadable(body, loaded.snapshot);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid readable file.' }, { status: 400 });
+    }
   }
 
   const version = snapshotVersionOf(body);

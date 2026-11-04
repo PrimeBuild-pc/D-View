@@ -14,7 +14,9 @@ FROM source AS schema
 ENV HOME=/tmp
 USER node
 # Client generation already happened at build time; keep this one-shot job read-only.
-CMD ["pnpm", "--filter", "@dpd/database", "db:push", "--skip-generate"]
+# Dependencies were installed above with a frozen lockfile, so skip pnpm's pre-run
+# dependency check: on this read-only filesystem it would try to reinstall and fail.
+CMD ["pnpm", "--config.verify-deps-before-run=false", "--filter", "@dpd/database", "db:push", "--skip-generate"]
 
 FROM source AS build
 RUN DPD_ENV_FILE=/tmp/dpd-build.env DATABASE_URL=postgresql://build:build@localhost:5432/build pnpm build

@@ -96,3 +96,38 @@ An imported file is never applied directly:
 - IDs are authoritative; names travel alongside them for review only.
 - Bitfields are strings because JSON has no integer wide enough.
 - Unknown metadata is preserved under `metadata` after validation.
+
+## Readable map (for people and LLMs)
+
+**Export readable map (for AI)** downloads `GET /api/guilds/{id}/snapshot?format=readable`:
+the same snapshot as a tree of categories and channels, with role names and
+permission names instead of IDs and bitfields. It starts with a `howToEdit` list,
+so an LLM can be given the file plus a request such as "deny SendMessages to
+@everyone in the whole INFO category except #feedback" and return an edited file.
+
+```json
+{
+  "format": "d-view-readable",
+  "formatVersion": 1,
+  "roles": [{ "id": "…", "name": "Member", "permissions": ["ViewChannel", "SendMessages"] }],
+  "channels": [{
+    "id": "…", "name": "INFO", "type": "category",
+    "overwrites": [{ "role": "@everyone", "allow": [], "deny": ["SendMessages"] }],
+    "channels": [
+      { "id": "…", "name": "rules", "type": "text", "syncedWithCategory": true },
+      { "id": "…", "name": "feedback", "type": "text", "syncedWithCategory": false,
+        "overwrites": [{ "role": "@everyone", "allow": ["SendMessages"], "deny": [] }] }
+    ]
+  }]
+}
+```
+
+Importing it uses the normal **Import** page. `fromReadable` (in `@dpd/shared`)
+rebuilds a full 2.0.0 snapshot on top of the current one, then the usual
+validation, plan review and confirmation apply. Rules:
+
+- Only permissions are imported; IDs must not change. Unknown role/channel IDs,
+  unknown permission names, ambiguous role names and allow/deny overlaps are rejected.
+- Roles or channels missing from the file are left unchanged.
+- `"syncedWithCategory": true` copies the (edited) category overwrites to that channel.
+- Permission bits without a name in this build are preserved from the live value.

@@ -91,6 +91,7 @@ const zh: Dict = {
     outdated: '该快照使用的是旧格式',
     outdatedHelp: '旧快照保存的是权限名称，无法在不丢失权限的情况下转换回位字段。请重新同步。',
     exportSnapshot: '导出快照',
+    exportReadable: '导出可读结构图（供 AI 使用）',
   },
 
   overview: {

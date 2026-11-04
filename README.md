@@ -44,6 +44,7 @@ and communicates with Discord. See [Privacy](PRIVACY.md).
 - **Matrix and audits:** see role-by-channel access and risky configurations.
 - **Members:** individual lookup; optional full member sync.
 - **History:** snapshots, comparisons, export and validated import into a plan.
+- **AI-friendly map:** export a readable category → channel tree with role and permission names, let any LLM edit it, then import it for review ([format](docs/json-schema-design.md#readable-map-for-people-and-llms)).
 - **Changes:** review masked permission edits, apply with confirmation, inspect
   per-operation results, and generate a reviewed rollback plan.
 - **Languages:** English, Italian, German, French, Spanish, Chinese and Russian.

@@ -25,6 +25,7 @@ export default async function ImportPage({ params }: { params: Promise<{ guildId
       </div>
       {/* A link to obtain a valid starting file, which the old page never offered. */}
       <LinkButton href={`/api/guilds/${guildId}/snapshot`}>{copy.sync.exportSnapshot}</LinkButton>
+      <LinkButton href={`/api/guilds/${guildId}/snapshot?format=readable`}>{copy.sync.exportReadable}</LinkButton>
       <ImportForm copy={copy} guildId={guildId} snapshot={load.snapshot} />
     </div>
   );
