@@ -91,6 +91,7 @@ const de: Dict = {
     outdated: 'Dieser Snapshot nutzt ein älteres Format',
     outdatedHelp: 'Ältere Snapshots speicherten Berechtigungsnamen, die sich nicht verlustfrei in Bitfelder zurückwandeln lassen. Führe eine neue Synchronisierung durch.',
     exportSnapshot: 'Snapshot exportieren',
+    exportReadable: 'Lesbare Karte exportieren (für KI)',
   },
 
   overview: {

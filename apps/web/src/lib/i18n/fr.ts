@@ -91,6 +91,7 @@ const fr: Dict = {
     outdated: 'Cet instantané utilise un ancien format',
     outdatedHelp: 'Les anciens instantanés stockaient des noms de permissions, impossibles à reconvertir en champs de bits sans en perdre. Lancez une nouvelle synchronisation.',
     exportSnapshot: 'Exporter l’instantané',
+    exportReadable: 'Exporter la carte lisible (pour IA)',
   },
 
   overview: {

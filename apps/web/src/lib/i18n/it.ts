@@ -91,6 +91,7 @@ const it: Dict = {
     outdated: 'Questo snapshot usa un formato precedente',
     outdatedHelp: 'Gli snapshot vecchi salvavano i nomi dei permessi, che non si possono riconvertire in bitfield senza perderne alcuni. Esegui una nuova sincronizzazione per continuare.',
     exportSnapshot: 'Esporta snapshot',
+    exportReadable: 'Esporta mappa leggibile (per IA)',
   },
 
   overview: {

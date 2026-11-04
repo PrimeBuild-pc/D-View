@@ -98,6 +98,7 @@ const en = {
     outdated: 'This snapshot uses an older format',
     outdatedHelp: 'Older snapshots stored permission names, which cannot be converted back to bitfields without losing permissions. Run a fresh sync to continue.',
     exportSnapshot: 'Export snapshot',
+    exportReadable: 'Export readable map (for AI)',
   },
 
   overview: {

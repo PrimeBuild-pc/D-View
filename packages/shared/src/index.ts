@@ -199,3 +199,5 @@ export function snapshotVersionOf(data: unknown): string | null {
 export function isCurrentSnapshot(data: unknown): boolean {
   return snapshotVersionOf(data) === SNAPSHOT_SCHEMA_VERSION;
 }
+
+export * from './readable';

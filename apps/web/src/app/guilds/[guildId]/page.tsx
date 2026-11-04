@@ -34,6 +34,7 @@ export default async function OverviewPage({
           <div className="flex flex-wrap gap-2">
             {/* Export is a plain link, so it needs no client state. */}
             <LinkButton href={`/api/guilds/${guildId}/snapshot`}>{copy.sync.exportSnapshot}</LinkButton>
+            <LinkButton href={`/api/guilds/${guildId}/snapshot?format=readable`}>{copy.sync.exportReadable}</LinkButton>
             <LinkButton href={`/guilds/${guildId}/import`}>{copy.nav.importJson}</LinkButton>
             <LinkButton href={`/guilds/${guildId}/explorer`} tone="primary">
               {copy.nav.explorer}

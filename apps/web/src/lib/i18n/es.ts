@@ -91,6 +91,7 @@ const es: Dict = {
     outdated: 'Esta instantánea usa un formato anterior',
     outdatedHelp: 'Las instantáneas antiguas guardaban nombres de permisos, que no se pueden reconvertir a campos de bits sin perder permisos. Ejecuta una sincronización nueva.',
     exportSnapshot: 'Exportar instantánea',
+    exportReadable: 'Exportar mapa legible (para IA)',
   },
 
   overview: {
