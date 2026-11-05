@@ -146,7 +146,7 @@ For remote hosting, see [HTTPS and reverse proxies](docs/self-hosting.md#https-a
    rejects unknown names or IDs, and shows a plan with every change.
 4. Review the plan and apply it. Applying needs Discord writes to be unlocked
    (`DISCORD_WRITES_LOCKED=false`, then restart `web`) and a bot role with Manage Roles placed
-   above the roles it edits. Every applied plan can be rolled back from **History**.
+   above the roles it edits. From an applied plan you can generate a reviewed rollback plan.
 
 Exporting and re-importing an unchanged file produces no changes: permission bits D-View does
 not know by name are preserved. See the [format reference](docs/json-schema-design.md#readable-map-for-people-and-llms).
