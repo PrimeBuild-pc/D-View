@@ -135,6 +135,26 @@ describe('readable permission map', () => {
     expect(result.channels).toEqual(base.channels);
   });
 
+  it('writes ids for duplicate role names so the export still round-trips', () => {
+    const base = snapshot();
+    base.roles.push({
+      id: '400',
+      name: 'Staff',
+      position: 3,
+      managed: true,
+      permissions: '0',
+    });
+    base.channels[0]!.overwrites.push({
+      targetId: '400',
+      targetType: 'role',
+      allow: bits(P.ViewChannel),
+      deny: '0',
+    });
+    const file = JSON.parse(JSON.stringify(toReadable(base)));
+    expect(JSON.stringify(file)).toContain('"role":"400"');
+    expect(fromReadable(file, base).channels).toEqual(base.channels);
+  });
+
   it('applies name-based edits and propagates category changes to synced children only', () => {
     const result = roundTrip((file) => {
       file.roles

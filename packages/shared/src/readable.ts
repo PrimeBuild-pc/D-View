@@ -93,10 +93,18 @@ function sameOverwrites(
 export function toReadable(
   snapshot: PermissionSnapshot,
 ): ReadablePermissionMap {
+  const nameCount = new Map<string, number>();
+  for (const role of snapshot.roles)
+    nameCount.set(role.name, (nameCount.get(role.name) ?? 0) + 1);
+  // Duplicate names (e.g. a bot role named like a project role) are written as ids so import can resolve them.
   const roleName = new Map(
     snapshot.roles.map((role) => [
       role.id,
-      role.id === snapshot.guild.id ? EVERYONE : role.name,
+      role.id === snapshot.guild.id
+        ? EVERYONE
+        : nameCount.get(role.name)! > 1
+          ? role.id
+          : role.name,
     ]),
   );
   const overwrites = (list: PermissionOverwrite[]): ReadableOverwrite[] =>
