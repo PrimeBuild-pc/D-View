@@ -135,6 +135,22 @@ cache/snapshot to your local database; it does not mutate Discord permissions.
 Use the exact `APP_URL` hostname: `localhost` and `127.0.0.1` are different origins.
 For remote hosting, see [HTTPS and reverse proxies](docs/self-hosting.md#https-and-remote-access).
 
+## Edit permissions with any LLM
+
+1. Sync the server, then click **Export readable map (for AI)**. The file lists roles
+   (highest first) and every category with its channels, using role and permission names.
+2. Give the file to any LLM (ChatGPT, Claude, DeepSeek, a local model…) with your request, for
+   example: *"Members may read but not write in the INFO category, except #feedback; give
+   Staff Manage Messages in every text channel."* The file starts with editing rules for the model.
+3. Import the returned file on the **Import** page. D-View validates it, ignores renames,
+   rejects unknown names or IDs, and shows a plan with every change.
+4. Review the plan and apply it. Applying needs Discord writes to be unlocked
+   (`DISCORD_WRITES_LOCKED=false`, then restart `web`) and a bot role with Manage Roles placed
+   above the roles it edits. From an applied plan you can generate a reviewed rollback plan.
+
+Exporting and re-importing an unchanged file produces no changes: permission bits D-View does
+not know by name are preserved. See the [format reference](docs/json-schema-design.md#readable-map-for-people-and-llms).
+
 ## Safety
 
 This installation locks Discord writes in configuration. If you deliberately
