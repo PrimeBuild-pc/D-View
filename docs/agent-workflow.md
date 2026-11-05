@@ -60,6 +60,25 @@ session from `AUTH_SECRET`, add a bypass route, change Origin checks, use GET fo
 mutations, mutate database rows directly or issue bot-token Discord writes outside
 the review pipeline.
 
+### Agent token (headless agents)
+
+A headless agent such as a Hermes bot cannot complete Discord OAuth. The owner can
+opt in by setting `AGENT_API_TOKEN` (32+ random characters) and `AGENT_USER_ID`
+(their own Discord user ID) in the instance `.env`, then recreating `web`. Requests
+with `Authorization: Bearer <AGENT_API_TOKEN>` are treated as a session of
+`AGENT_USER_ID`:
+
+- every guild route still re-checks that user's live owner/Administrator rights
+  through the bot, exactly like a browser session;
+- the bearer replaces only the `Origin` check (browsers never attach it on their
+  own); write locks, `confirm`, drift checks and history are unchanged, and plans
+  are recorded as created by `AGENT_USER_ID`;
+- `/api/discord/guilds` and the OAuth guild picker do not work with the token.
+
+Keep the token only in the agent's secret store and rotate it by changing the
+value and recreating `web`. Unset either variable to disable agent access. The
+agent should put its own name in the plan `reason` so History shows who drafted it.
+
 Useful existing routes (not a new public API contract):
 
 | Route suffix under `/api/guilds/{guildId}` | Behavior                                                                    |
