@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 /** Canonical public origin; never derive OAuth redirects from an untrusted Host header. */
@@ -11,7 +12,21 @@ export function appUrl(): URL {
   return url;
 }
 
+/**
+ * Optional automation access (e.g. a Hermes agent). Off unless AGENT_API_TOKEN (32+ chars) and
+ * AGENT_USER_ID are set. A bearer header is never sent by a browser on its own, so it needs no
+ * Origin check; the agent acts as AGENT_USER_ID and is re-authorized like any session.
+ */
+export function isAgentBearer(authorization: string | null): boolean {
+  const token = process.env.AGENT_API_TOKEN;
+  if (!token || token.length < 32 || !/^\d{1,20}$/.test(process.env.AGENT_USER_ID || '') ||
+    !authorization?.startsWith('Bearer ')) return false;
+  const digest = (value: string) => crypto.createHash('sha256').update(value).digest();
+  return crypto.timingSafeEqual(digest(authorization.slice(7)), digest(token));
+}
+
 export function invalidOrigin(request: Request): boolean {
+  if (isAgentBearer(request.headers.get('authorization'))) return false;
   return request.headers.get('origin') !== appUrl().origin ||
     request.headers.get('sec-fetch-site') === 'cross-site';
 }

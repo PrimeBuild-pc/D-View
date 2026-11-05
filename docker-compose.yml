@@ -48,6 +48,8 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/discord_permission_dashboard
       DISCORD_WRITES_LOCKED: ${DISCORD_WRITES_LOCKED:-true}
       DISCORD_WRITES_ALWAYS: ${DISCORD_WRITES_ALWAYS:-false}
+      AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
+      AGENT_USER_ID: ${AGENT_USER_ID:-}
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:

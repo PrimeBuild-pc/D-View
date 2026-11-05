@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 import crypto from 'node:crypto';
 import { z } from 'zod';
-import { appUrl } from './request';
+import { appUrl, isAgentBearer } from './request';
 
 export interface DiscordUserGuild {
   id: string;
@@ -59,8 +59,15 @@ export function decodeSession(value?: string): DiscordSession | null {
   }
 }
 
-export const getSession = cache(async (): Promise<DiscordSession | null> =>
-  decodeSession((await cookies()).get(cookieName)?.value));
+export const getSession = cache(async (): Promise<DiscordSession | null> => {
+  if (isAgentBearer((await headers()).get('authorization'))) {
+    // No OAuth token: guild routes re-check AGENT_USER_ID's live roles through the bot instead.
+    const now = Date.now();
+    return { user: { id: process.env.AGENT_USER_ID!, username: 'agent', avatar: null },
+      accessToken: 'agent', createdAt: now, expiresAt: now + 15 * 60_000 };
+  }
+  return decodeSession((await cookies()).get(cookieName)?.value);
+});
 
 export async function setSession(session: DiscordSession): Promise<void> {
   const value = encodeSession(session);

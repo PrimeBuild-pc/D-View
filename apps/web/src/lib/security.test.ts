@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canReadGuild, decodeSession, encodeSession, type DiscordSession } from './session';
-import { appUrl, invalidOrigin, readBody, readJson } from './request';
+import { appUrl, invalidOrigin, isAgentBearer, readBody, readJson } from './request';
 import { authorizeGuild, readableGuilds } from './guild';
 import { discord } from './discord';
 
@@ -65,6 +65,22 @@ describe('request boundaries', () => {
     vi.stubEnv('APP_URL', 'https://dashboard.example');
     expect(invalidOrigin(new Request('http://internal:3000/api', { headers: { origin: 'https://dashboard.example' } }))).toBe(false);
     expect(invalidOrigin(new Request('http://internal/api', { headers: { origin: 'https://dashboard.example', 'sec-fetch-site': 'cross-site' } }))).toBe(true);
+  });
+  it('accepts the agent bearer only when fully configured and exact', () => {
+    const token = 'agent-token-with-more-than-thirty-two-chars';
+    const bearer = `Bearer ${token}`;
+    expect(isAgentBearer(bearer)).toBe(false);
+    vi.stubEnv('AGENT_API_TOKEN', token);
+    expect(isAgentBearer(bearer)).toBe(false);
+    vi.stubEnv('AGENT_USER_ID', '755869111619289118');
+    expect(isAgentBearer(bearer)).toBe(true);
+    expect(isAgentBearer(`${bearer}x`)).toBe(false);
+    expect(isAgentBearer(token)).toBe(false);
+    expect(isAgentBearer(null)).toBe(false);
+    expect(invalidOrigin(new Request('http://localhost:3000/api', { method: 'POST', headers: { authorization: bearer } }))).toBe(false);
+    expect(invalidOrigin(new Request('http://localhost:3000/api', { method: 'POST', headers: { authorization: 'Bearer wrong' } }))).toBe(true);
+    vi.stubEnv('AGENT_API_TOKEN', 'short');
+    expect(isAgentBearer('Bearer short')).toBe(false);
   });
   it.each(['http://dashboard.example', 'https://example.com/path', 'https://user:pass@example.com', 'ftp://example.com'])('rejects unsafe APP_URL %s', (value) => {
     vi.stubEnv('APP_URL', value);
