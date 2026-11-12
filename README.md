@@ -220,6 +220,6 @@ node --test tests/infra.test.mjs
 
 ## Support
 
-[Support development](https://paypal.me/PrimeBuildOfficial?country.x=IT&locale.x=it_IT)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y6U02AIRB8) [![PayPal](https://img.shields.io/badge/Support-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/PrimeBuildOfficial)
 
 [Security policy](SECURITY.md) · [Terms](TERMS.md) · [Privacy](PRIVACY.md) · [MIT license](LICENSE)
